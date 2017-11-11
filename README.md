@@ -51,8 +51,9 @@ For example, PO could answer to the customer's tweet I've mentioned before
 with this gif:
 
 ![Spaceship image](https://78.media.tumblr.com/b3e70f28576387fda876d31f016d7210/tumblr_ockq1vBVUo1ujqvcvo1_500.gif)
-**Image credit:
-[http://glitchblackmusic.tumblr.com/post/149556177846/warpzone](http://glitchblackmusic.tumblr.com/post/149556177846/warpzone)**
+
+*Image credit:*
+[http://glitchblackmusic.tumblr.com/post/149556177846/warpzone](http://glitchblackmusic.tumblr.com/post/149556177846/warpzone)
 
 ### Engineering
 
@@ -109,6 +110,9 @@ Rejected work:
 
 @product\_owner replying to @customer:
 > ![Blinking text](http://78.media.tumblr.com/162ef9e138b720bd1746af645595a6b2/tumblr_ogg138gLg11twnexlo1_500.gif)
+
+*Image credit:*
+[http://just-usmadd.tumblr.com/post/153007022361](http://just-usmadd.tumblr.com/post/153007022361)
 
 @engineer replying to @product\_owner:
 > 👎👎👎👎
