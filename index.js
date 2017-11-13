@@ -26,6 +26,10 @@ const TWEET_QA_APPROVED = 'qa_approved_tweet';
 const TWEET_QA_REJECTED = 'qa_rejected_tweet';
 
 const NOTIFICATION_TASK_COMPLETED = 'NOTIFICATION_TASK_COMPLETED';
+const NOTIFICATION_FOR_PO = 'NOTIFICATION_FOR_PO';
+const NOTIFICATION_FOR_DEV_NEW = 'NOTIFICATION_FOR_DEV_NEW';
+const NOTIFICATION_FOR_DEV_REJECTED = 'NOTIFICATION_FOR_DEV_REJECTED';
+const NOTIFICATION_FOR_QA = 'NOTIFICATION_FOR_QA';
 
 const WORK_CENTER_BY_TWEET_TYPE = {
   [TWEET_PO]: WORK_CENTER_PO,
@@ -40,7 +44,8 @@ const customerList = [
 ];
 
 const poList = [
-  '929069070892355585'
+  '929069070892355585',
+  '171462019'
 ];
 
 const devList = [
@@ -55,6 +60,12 @@ const customerSet = new Set(customerList);
 const poSet = new Set(poList);
 const devSet = new Set(devList);
 const qaSet = new Set(qaList);
+
+
+const twitterUsernameByUserId = {
+  '929069070892355585': 'mngr999',
+  '171462019': 'flpvsk'
+};
 
 
 const gameHashTag = 'yo';
@@ -126,11 +137,21 @@ client.stream( 'statuses/filter',
 
 
     stream.on('data', (msg) => {
-      const str = util.inspect(msg, {depth: null});
       if (!isTweet(msg)) {
+        const str = util.inspect(msg, {depth: null});
         console.warn('Not a tweet', str);
         return;
       }
+
+      if (msg.retweeted_status) {
+        const url = (
+          `https://twitter.com/${msg.user.screen_name}/statuses/` +
+          msg.id_str
+        );
+        console.warn('Ignoring a retweet', url);
+        return;
+      }
+
       // console.log(str);
 
       const userId = msg.user.id_str;
@@ -152,6 +173,12 @@ client.stream( 'statuses/filter',
         tweetUsernameById[tweetId] = username;
         threadStatusById[tweetId] = WORK_CENTER_PO;
         tweetThreads.add(tweetId);
+
+        notifications.push({
+          type: NOTIFICATION_FOR_PO,
+          tweetId: tweetId
+        });
+
         return;
       }
 
@@ -168,6 +195,12 @@ client.stream( 'statuses/filter',
         tweetParentById[tweetId] = parentId;
         tweetThreadById[tweetId] = parentId;
         threadStatusById[parentId] = WORK_CENTER_DEV;
+
+        notifications.push({
+          type: NOTIFICATION_FOR_DEV_NEW,
+          tweetId: tweetId
+        });
+
         return;
       }
 
@@ -192,6 +225,12 @@ client.stream( 'statuses/filter',
 
         if (!threadEndById[threadId]) {
           threadStatusById[threadId] = WORK_CENTER_QA;
+
+          notifications.push({
+            type: NOTIFICATION_FOR_QA,
+            tweetId: tweetId
+          });
+
           return;
         }
       }
@@ -243,6 +282,11 @@ client.stream( 'statuses/filter',
         }
 
         threadStatusById[threadId] = WORK_CENTER_DEV;
+        notifications.push({
+          type: NOTIFICATION_FOR_DEV_REJECTED,
+          tweetId: tweetId,
+          devUsername: tweetUsernameById[parentId]
+        });
         return;
       }
 
@@ -337,7 +381,7 @@ setInterval(() => {
   console.log('Inventory', inventory, 'Defects', defects);
   console.log('Inventory by work center', inventoryByWorkCenter);
   console.log('==============================\n');
-}, 2000);
+}, 5000);
 
 const collectUsernames = (lastTweetId) => {
   let usernames = new Set();
@@ -352,30 +396,132 @@ const collectUsernames = (lastTweetId) => {
   return [...usernames];
 };
 
+
 // Notifications
 setInterval(() => {
   while (notifications.length > 0) {
     let notification = notifications.pop();
 
     if (notification.type === NOTIFICATION_TASK_COMPLETED) {
-      let usernames = collectUsernames(notification.lastTweetId);
-      let leadTime = Math.round((
-        tweetTimeById[notification.lastTweetId] -
-        tweetTimeById[notification.threadId]
+      const threadId = notification.threadId;
+      const usernames = collectUsernames(notification.lastTweetId);
+      const qaUsername = tweetUsernameById[notification.lastTweetId];
+      const lastTweetId = notification.lastTweetId;
+      const leadTime = Math.round((
+        tweetTimeById[lastTweetId] -
+        tweetTimeById[threadId]
       ) / 1000);
 
-      let text = (
-        `${usernames.join(' ')} congrats on your finished the task! ` +
-        `Your time: ${leadTime}s`
+      const text = (
+        `${usernames.join(' ')} congrats on your finished task 🙌  ` +
+        `Your time: ${leadTime}s. ` +
+        `https://twitter.com/${qaUsername}/statuses/${lastTweetId}`
       );
 
       console.log('sending', text);
 
       client
         .post('statuses/update', {
-          status: text,
-          in_reply_to_status_id: notification.lastTweetId
+          status: text
         })
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+
+    if (notification.type === NOTIFICATION_FOR_PO) {
+      const poIndex = (
+        tweetThreads.size % poList.length
+      );
+
+      const poId = poList[poIndex];
+      const poUsername = twitterUsernameByUserId[poId];
+      const tweetId = notification.tweetId;
+      const customerUsername = tweetUsernameById[tweetId];
+      const text = (
+        `@${poUsername} Check out this task from a customer. ` +
+        `Reply to the tweet referenced below with a gif-spec: ` +
+        `https://twitter.com/${customerUsername}/statuses/${tweetId}`
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+
+    if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
+      const devIndex = (
+        tweetThreads.size % devList.length
+      );
+
+      const devId = devList[devIndex];
+      const devUsername = twitterUsernameByUserId[devId];
+      const tweetId = notification.tweetId;
+      const poUsername = tweetUsernameById[tweetId];
+      const text = (
+        `@${devUsername} Check out this spec from a PO. ` +
+        `Reply to the tweet referenced below with ` +
+        `your emoji-implementation: ` +
+        `https://twitter.com/${poUsername}/statuses/${tweetId}`
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+
+    if (notification.type === NOTIFICATION_FOR_DEV_REJECTED) {
+      const devUsername = notification.devUsername;
+      const tweetId = notification.tweetId;
+      const qaUsername = tweetUsernameById[tweetId];
+      const text = (
+        `@${devUsername} Your implementation was rejected by QA. ` +
+        `Reply to the tweet referenced below with ` +
+        `the new emoji-implementation: ` +
+        `https://twitter.com/${qaUsername}/statuses/${tweetId}`
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+
+    if (notification.type === NOTIFICATION_FOR_QA) {
+      const qaIndex = (
+        tweetThreads.size % qaList.length
+      );
+
+      const qaId = qaList[qaIndex];
+      const qaUsername = twitterUsernameByUserId[qaId];
+      const tweetId = notification.tweetId;
+      const devUsername = tweetUsernameById[tweetId];
+      const text = (
+        `@${qaUsername} Check out this implementation from a developer. ` +
+        `Reply to the tweet referenced below with ` +
+        `"approved" or "rejected"` +
+        `https://twitter.com/${devUsername}/statuses/${tweetId}`
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
         .catch((err) => {
           console.error('Can\'t send notification', text, err);
         });
@@ -383,3 +529,5 @@ setInterval(() => {
   }
 }, 1000);
 
+
+// TODO: more variations of texts
