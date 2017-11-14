@@ -91,9 +91,10 @@ const isPositiveAnswer = (text) => {
   );
 };
 
-const qaDidApprove = (customerTweetId, answers) => {
-  return _.some(answers[customerTweetId], (a) => a === QA_APPROVED);
-};
+const getTweetUrl = (username, tweetId) => {
+  return `https://twitter.com/${username}/statuses/${tweetId}`;
+}
+
 
 const client = new Twitter({
   consumer_key: process.env.TWITTER_CONSUMER_KEY,
@@ -144,10 +145,7 @@ client.stream( 'statuses/filter',
       }
 
       if (msg.retweeted_status) {
-        const url = (
-          `https://twitter.com/${msg.user.screen_name}/statuses/` +
-          msg.id_str
-        );
+        const url = getTweetUrl(msg.user.screen_name, msg.id_str);
         console.warn('Ignoring a retweet', url);
         return;
       }
@@ -415,7 +413,7 @@ setInterval(() => {
       const text = (
         `${usernames.join(' ')} congrats on your finished task 🙌  ` +
         `Your time: ${leadTime}s. ` +
-        `https://twitter.com/${qaUsername}/statuses/${lastTweetId}`
+        getTweetUrl(qaUsername, lastTweetId)
       );
 
       console.log('sending', text);
@@ -442,7 +440,7 @@ setInterval(() => {
       const text = (
         `@${poUsername} Check out this task from a customer. ` +
         `Reply to the tweet referenced below with a gif-spec: ` +
-        `https://twitter.com/${customerUsername}/statuses/${tweetId}`
+        getTweetUrl(customerUsername, tweetId)
       );
 
       console.log('sending', text);
@@ -468,7 +466,7 @@ setInterval(() => {
         `@${devUsername} Check out this spec from a PO. ` +
         `Reply to the tweet referenced below with ` +
         `your emoji-implementation: ` +
-        `https://twitter.com/${poUsername}/statuses/${tweetId}`
+        getTweetUrl(poUsername, tweetId)
       );
 
       console.log('sending', text);
@@ -489,7 +487,7 @@ setInterval(() => {
         `@${devUsername} Your implementation was rejected by QA. ` +
         `Reply to the tweet referenced below with ` +
         `the new emoji-implementation: ` +
-        `https://twitter.com/${qaUsername}/statuses/${tweetId}`
+        getTweetUrl(qaUsername, tweetId)
       );
 
       console.log('sending', text);
@@ -515,7 +513,7 @@ setInterval(() => {
         `@${qaUsername} Check out this implementation from a developer. ` +
         `Reply to the tweet referenced below with ` +
         `"approved" or "rejected"` +
-        `https://twitter.com/${devUsername}/statuses/${tweetId}`
+        getTweetUrl(devUsername, tweetId)
       );
 
       console.log('sending', text);
