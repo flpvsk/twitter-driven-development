@@ -15,10 +15,6 @@ const WORK_CENTER_DEV = 'dev';
 const WORK_CENTER_QA = 'qa';
 const DONE = 'done';
 
-const QA_APPROVED = 'approved';
-const QA_REJECTED = 'rejected';
-
-
 const TWEET_CUSTOMER = 'customer_tweet';
 const TWEET_PO = 'po_tweet';
 const TWEET_DEV = 'dev_tweet';
@@ -59,7 +55,7 @@ const NOTIFICATION_TEXT_BY_TYPE = {
       `Reply to the tweet referenced below with ` +
       `your emoji-implementation: `
     )
-  ]
+  ],
   [NOTIFICATION_FOR_DEV_REJECTED]: [
     (
       `Your implementation was rejected by QA. ` +
