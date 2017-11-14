@@ -138,17 +138,17 @@ const ADMIN_ID = '929069070892355585';// '171462019';
 const SELF_ID = '929069070892355585';
 
 let usersByCategory = {
-  'customer': [
+  customer: [
     // '929069070892355585',
     // '171462019'
   ],
-  'po': [
+  po: [
     // '929069070892355585'
   ],
-  'dev': [
+  dev: [
     // '929069070892355585'
   ],
-  'qa': [
+  qa: [
     // '929069070892355585'
   ]
 };
@@ -167,10 +167,10 @@ let gameHashTag = undefined;
 const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
 const startWatching = () => {
-  const customerSet = new Set(U);
-  const poSet = new Set(poList);
-  const devSet = new Set(devList);
-  const qaSet = new Set(qaList);
+  const customerSet = new Set(usersByCategory.customer);
+  const poSet = new Set(usersByCategory.po);
+  const devSet = new Set(usersByCategory.dev);
+  const qaSet = new Set(usersByCategory.qa);
 
   const usersToFollow = (
     [
@@ -563,11 +563,11 @@ setInterval(() => {
     scoreboardData: scores
   }));
 
-  console.log('System lead times', leadTimeReduced);
-  console.log('Work center lead times', leadTimesByWorkCenterReduced);
-  console.log('Inventory', inventory, 'Defects', defects);
-  console.log('Inventory by work center', inventoryByWorkCenter);
-  console.log('==============================\n');
+  // console.log('System lead times', leadTimeReduced);
+  // console.log('Work center lead times', leadTimesByWorkCenterReduced);
+  // console.log('Inventory', inventory, 'Defects', defects);
+  // console.log('Inventory by work center', inventoryByWorkCenter);
+  // console.log('==============================\n');
 }, 5000);
 
 
@@ -620,6 +620,7 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_PO) {
+      const poList = usersByCategory.po;
       const poIndex = (
         tweetThreads.size % poList.length
       );
@@ -645,6 +646,7 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
+      const devList = usersByCategory.dev;
       const devIndex = (
         tweetThreads.size % devList.length
       );
@@ -692,6 +694,7 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_QA) {
+      const qaList = usersByCategory.qa;
       const qaIndex = (
         tweetThreads.size % qaList.length
       );
