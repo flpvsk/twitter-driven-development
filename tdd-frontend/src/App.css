@@ -1,28 +1,171 @@
+/* @import url('https://fonts.googleapis.com/css?family=Roboto:400,400i,500'); */
+@import url('https://fonts.googleapis.com/css?family=Roboto:300,300i,400,500');
+
+body {
+  background-color: #553776;
+  color: #fff;
+  font-size: 32px;
+}
+
+* {
+  border-sizing: border-box;
+}
+
+.Footer {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 100px;
+  padding-bottom: 10px;
+  text-align: center;
+  font-size: 0.5em;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 300;
+}
+
+.Footer a, .Footer a:visited {
+  color: #E2CE00;
+}
+
 .App {
+  font-family: 'Roboto', sans-serif;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.Header {
+  font-size: 1.35em;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.Section {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  width: 100%;
+  margin-top: 1.85em;
+  margin-bottom: 1.85em;
+}
+
+._topBorder {
+  border-top: 3px solid rgba(255, 255, 255, 0.5);
+  padding-top: 1.85em;
+}
+
+.MetricBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.MainMetricHeader {
+  font-size: 1.85em;
   text-align: center;
 }
 
-.App-logo {
-  animation: App-logo-spin infinite 20s linear;
-  height: 80px;
+.MainMetricNumber {
+  font-size: 3.85em;
+  font-weight: 500;
+  text-align: center;
+  text-shadow: 7px -1px 0px #333;
 }
 
-.App-header {
-  background-color: #222;
-  height: 150px;
-  padding: 20px;
-  color: white;
+.MainMetricDescription {
+  font-size: 1em;
+  text-align: center;
+  opacity: 0.5;
+  font-weight: 300;
 }
 
-.App-title {
-  font-size: 1.5em;
+.WorkInProgressMetricBlock {
+  display: flex;
+  flex-direction: column;
 }
 
-.App-intro {
-  font-size: large;
+.WorkInProgressMetricHeader {
+  font-size: 1.35em;
+  font-weight: 300;
+  text-align: center;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.7em;
 }
 
-@keyframes App-logo-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.WorkInProgressMetricNumber {
+  font-size: 2em;
+  text-align: center;
+  margin-bottom: 0.2em;
+}
+
+.WorkInProgressMetricDescription {
+  font-size: 1em;
+  text-align: center;
+  opacity: 0.5;
+  font-weight: 300;
+}
+
+.Info {
+  text-align: center;
+  font-weight: 300;
+  font-size: 0.7em;
+  margin-top: 1em;
+  opacity: 0.5;
+}
+
+
+.ScoreCard {
+  border-radius: 5px;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  margin-top: 2em;
+  display: flex;
+  padding-top: 1em;
+  padding-bottom: 1em;
+}
+
+.ScoreCard__Place {
+  flex: 0 0 20%;
+  text-align: center;
+  font-weight: 300;
+}
+
+.ScoreCard__Body {
+  flex: 0 0 70%;
+}
+
+.ScoreCard__Users {
+  font-weight: 300;
+  font-size: 0.7em;
+  line-height: 1.44em;
+}
+
+.ScoreCard__Metrics {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  font-size: 0.7em;
+}
+
+.ScoreCard__Metric {
+  display: flex;
+  margin-top: 0.5em;
+}
+
+.ScoreCard__MetricName {
+  color: rgba(255, 255, 255, 0.5);
+  padding-right: 0.2em;
+}
+
+.ScoreCard__MetricValue {
+  letter-spacing: -0.05em;
+  text-align: left;
+}
+
+
+._supOrSub {
+  font-size: 0.35em;
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.03em;
 }
