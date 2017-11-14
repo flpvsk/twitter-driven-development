@@ -45,17 +45,29 @@ class ScoreCard extends Component {
       place,
       tasksDoneNumber,
       meanLeadTime,
-      varianceLeadTime
+      varianceLeadTime,
+      usernames
     } = this.props;
+
+    let userLinks = usernames.reduce((acc, user) => {
+      acc.push(
+        <a href={`https://twitter.com/${user}`}>@{user}</a>
+      );
+
+      if (acc.length !== usernames.length * 2 - 1) {
+        acc.push(', ');
+      }
+
+      return acc;
+    }, []);
+
     return (
       <div className='ScoreCard'>
         <div className='ScoreCard__Place'>
           #{place}
         </div>
         <div className='ScoreCard__Body'>
-          <div className='ScoreCard__Users'>
-            {'@dask, @sadlfkj_dskjf, @ldskfj, @dlkfja'}
-          </div>
+          <div className='ScoreCard__Users'>{userLinks}</div>
           <div className='ScoreCard__Metrics'>
             <div className='ScoreCard__Metric'>
               <div className='ScoreCard__MetricName'>
