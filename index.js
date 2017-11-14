@@ -31,6 +31,51 @@ const NOTIFICATION_FOR_DEV_NEW = 'NOTIFICATION_FOR_DEV_NEW';
 const NOTIFICATION_FOR_DEV_REJECTED = 'NOTIFICATION_FOR_DEV_REJECTED';
 const NOTIFICATION_FOR_QA = 'NOTIFICATION_FOR_QA';
 
+const NOTIFICATION_TEXT_BY_TYPE = {
+  [NOTIFICATION_TASK_COMPLETED]: [
+    `congrats on your finished task 🙌  `,
+    `woohoo! this task is done! `,
+    `done and done 🔥 `,
+    `task – ✅ you – 🤘 `,
+  ],
+  [NOTIFICATION_FOR_PO]: [
+    (
+      `Check out this task from a customer. ` +
+      `Reply to the tweet referenced below with a gif-spec: `
+    ),
+    (
+      `Incoming req from a customer. ` +
+      `Do that thing you do so well – ` +
+      `gif-reply to the attached tweet: `
+    ),
+    (
+      `Here's a request from a customer. ` +
+      `Reply with a gif to their tweet: `
+    )
+  ],
+  [NOTIFICATION_FOR_DEV_NEW]: [
+    (
+      `Check out this spec from a PO. ` +
+      `Reply to the tweet referenced below with ` +
+      `your emoji-implementation: `
+    )
+  ]
+  [NOTIFICATION_FOR_DEV_REJECTED]: [
+    (
+      `Your implementation was rejected by QA. ` +
+      `Reply to the tweet referenced below with ` +
+      `the new emoji-implementation: `
+    )
+  ],
+  [NOTIFICATION_FOR_QA]: [
+    (
+      `Check out this implementation from a developer. ` +
+      `Reply to the tweet referenced below with ` +
+      `"approved" or "rejected"`
+    )
+  ]
+};
+
 const WORK_CENTER_BY_TWEET_TYPE = {
   [TWEET_PO]: WORK_CENTER_PO,
   [TWEET_DEV]: WORK_CENTER_DEV,
