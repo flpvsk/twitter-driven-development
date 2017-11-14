@@ -190,6 +190,7 @@ class App extends Component {
 }
 
 
+/*
 const EMPTY_STATE = {
   hashtag: 'no active game rn',
   participantsNumber: 0,
@@ -203,6 +204,7 @@ const EMPTY_STATE = {
   qaThroughput: '',
   scoreboardData: []
 };
+*/
 
 
 const TEST_STATE = {

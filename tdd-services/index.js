@@ -422,6 +422,7 @@ setInterval(() => {
   console.log('==============================\n');
 }, 5000);
 
+
 const collectUsernames = (lastTweetId) => {
   let usernames = new Set();
   usernames.add(`@${tweetUsernameById[lastTweetId]}`);
