@@ -64,6 +64,7 @@ body {
 .MetricBlock {
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .MainMetricHeader {
@@ -88,6 +89,7 @@ body {
 .WorkInProgressMetricBlock {
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .WorkInProgressMetricHeader {

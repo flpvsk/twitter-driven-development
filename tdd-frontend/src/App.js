@@ -21,7 +21,14 @@ class MainMetricBlock extends Component {
 
 
 class WorkInProgressMetricBlock extends Component {
+
   render() {
+    let description;
+
+    if (this.props.throughput) {
+      description = `${Math.round(this.props.throughput)}s / tweet`;
+    }
+
     return (
       <div className='WorkInProgressMetricBlock'>
         <div className='WorkInProgressMetricHeader'>
@@ -31,7 +38,7 @@ class WorkInProgressMetricBlock extends Component {
           {this.props.value}
         </div>
         <div className='WorkInProgressMetricDescription'>
-          {this.props.description}
+          {description}
         </div>
       </div>
     );
@@ -51,7 +58,7 @@ class ScoreCard extends Component {
 
     let userLinks = usernames.reduce((acc, user) => {
       acc.push(
-        <a href={`https://twitter.com/${user}`}>@{user}</a>
+        <a key={user} href={`https://twitter.com/${user}`}>@{user}</a>
       );
 
       if (acc.length !== usernames.length * 2 - 1) {
@@ -113,6 +120,7 @@ class App extends Component {
 
   render() {
     const {
+      isLoading,
       hashtag,
       participantsNumber,
       tasksInProgressNumber,
@@ -138,14 +146,28 @@ class App extends Component {
 
     if (!!scoreboardData.length) {
       scoreboardRendered = scoreboardData.map((data) => {
-        return <ScoreCard {...data} />;
+        return <ScoreCard key={data.place} {...data} />;
       });
+    }
+
+    let hashtagStr;
+
+    if (isLoading) {
+      hashtagStr = 'connecting...';
+    }
+
+    if (!isLoading && hashtag) {
+      hashtagStr = `#${hashtag}`;
+    }
+
+    if (!isLoading && !hashtag) {
+      hashtagStr = 'no active game rn';
     }
 
     return (
       <div className='App'>
         <header className='Header'>
-          {hashtag}
+          {hashtagStr}
         </header>
         <section className='Section'>
           <MainMetricBlock
@@ -170,15 +192,15 @@ class App extends Component {
           <WorkInProgressMetricBlock
             header={'PO'}
             value={poInProgressNumber}
-            description={poThroughput} />
+            throughput={poThroughput} />
           <WorkInProgressMetricBlock
             header={'DEV'}
             value={devInProgressNumber}
-            description={devThroughput} />
+            throughput={devThroughput} />
           <WorkInProgressMetricBlock
             header={'QA'}
             value={qaInProgressNumber}
-            description={qaThroughput} />
+            throughput={qaThroughput} />
         </section>
         <header id='scoreboard' className='Header _topBorder'>
           {'Scoreboard'}
@@ -190,21 +212,6 @@ class App extends Component {
 }
 
 
-/*
-const EMPTY_STATE = {
-  hashtag: 'no active game rn',
-  participantsNumber: 0,
-  tasksInProgressNumber: 0,
-  tasksDoneNumber: 0,
-  poInProgressNumber: 0,
-  poThroughput: '',
-  devInProgressNumber: 0,
-  devThroughput: '',
-  qaInProgressNumber: 0,
-  qaThroughput: '',
-  scoreboardData: []
-};
-*/
 
 
 const TEST_STATE = {
@@ -213,11 +220,11 @@ const TEST_STATE = {
   tasksInProgressNumber: 10,
   tasksDoneNumber: 3,
   poInProgressNumber: 3,
-  poThroughput: '10s / tweet',
+  poThroughput: 10,
   devInProgressNumber: 5,
-  devThroughput: '30s / tweet',
+  devThroughput: 30,
   qaInProgressNumber: 2,
-  qaThroughput: '10s / tweet',
+  qaThroughput: 10,
   scoreboardData: [
     {
       place: 1,

@@ -3,6 +3,9 @@ const _ = require('lodash');
 const util = require('util');
 const Twitter = require('twitter');
 const emojiRegex = require('emoji-regex')();
+const api = require('./api');
+
+api.startServer();
 
 const isTweet = _.conforms({
   id_str: _.isString,
@@ -86,7 +89,7 @@ const customerList = [
 
 const poList = [
   '929069070892355585',
-  '171462019'
+  // '171462019'
 ];
 
 const devList = [
@@ -103,7 +106,7 @@ const devSet = new Set(devList);
 const qaSet = new Set(qaList);
 
 
-const twitterUsernameByUserId = {
+const usernameByUserId = {
   '929069070892355585': 'mngr999',
   '171462019': 'flpvsk'
 };
@@ -169,7 +172,7 @@ const notifications = [];
 // End State
 
 
-client.stream( 'statuses/filter',
+client.stream('statuses/filter',
   {follow: `${usersToFollow}`},
   (stream) => {
     stream.on('error', (err) => {
@@ -345,9 +348,12 @@ setInterval(() => {
     [WORK_CENTER_DEV]: [],
     [WORK_CENTER_QA]: []
   };
+  let leadTimesByTeamId = {};
+  let usernamesByTeamId = {};
 
   let inventory = 0;
   let defects = 0;
+  let done = 0;
   let inventoryByWorkCenter = {
     [WORK_CENTER_PO]: 0,
     [WORK_CENTER_DEV]: 0,
@@ -361,7 +367,15 @@ setInterval(() => {
     let endTime = threadEnd ? tweetTimeById[threadEnd] : undefined;
 
     if (endTime) {
-      leadTimes.push((endTime - startTime) / 1000)
+      let leadTime = (endTime - startTime) / 1000;
+      let usernames = collectUsernames(threadEnd);
+      let teamId = usernames.join('-');
+      let teamLeadTimes = leadTimesByTeamId[teamId] || [];
+      leadTimes.push(leadTime);
+      teamLeadTimes.push(leadTime);
+      leadTimesByTeamId[teamId] = teamLeadTimes;
+      usernamesByTeamId[teamId] = usernames;
+      done += 1;
       continue;
     }
 
@@ -392,7 +406,7 @@ setInterval(() => {
   const leadTimeReduced = {
     min: _.min(leadTimes),
     max: _.max(leadTimes),
-    avg: _.mean(leadTimes)
+    avg: _.mean(leadTimes) || undefined
   };
 
 
@@ -400,20 +414,62 @@ setInterval(() => {
     [WORK_CENTER_PO]: {
       min: _.min(leadTimesByWorkCenter[WORK_CENTER_PO]),
       max: _.max(leadTimesByWorkCenter[WORK_CENTER_PO]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_PO])
+      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_PO]) || undefined
     },
     [WORK_CENTER_DEV]: {
       min: _.min(leadTimesByWorkCenter[WORK_CENTER_DEV]),
       max: _.max(leadTimesByWorkCenter[WORK_CENTER_DEV]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_DEV])
+      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_DEV]) || undefined
     },
     [WORK_CENTER_QA]: {
       min: _.min(leadTimesByWorkCenter[WORK_CENTER_QA]),
       max: _.max(leadTimesByWorkCenter[WORK_CENTER_QA]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_QA])
+      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_QA]) || undefined
     }
   };
 
+
+  // Scores
+  let scores = [];
+  for (let [teamId, leadTimes] of _.entries(leadTimesByTeamId)) {
+    let min = _.min(leadTimes);
+    let max = _.max(leadTimes);
+    let mean = _.mean(leadTimes);
+    let variance = Math.pow(max - min, 2);
+    let tasksDoneNumber = leadTimes.length;
+    let points = Math.round(
+      mean * tasksDoneNumber /
+      (variance || 10)
+    );
+    let score = {
+      usernames: usernamesByTeamId[teamId],
+      varianceLeadTime: variance,
+      meanLeadTime: mean,
+      tasksDoneNumber,
+      points
+    };
+
+    scores.push(score);
+  }
+
+  scores = _.sortBy(scores, (score) => score.points);
+  _.forEach(scores, (score, index) => {
+    score.place = index + 1;
+  });
+
+  api.broadcast(JSON.stringify({
+    hashtag: gameHashTag,
+    participantsNumber: Object.keys(usernameByUserId).length,
+    tasksInProgressNumber: inventory,
+    tasksDoneNumber: done,
+    poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
+    devInProgressNumber: inventoryByWorkCenter[WORK_CENTER_DEV],
+    qaInProgressNumber: inventoryByWorkCenter[WORK_CENTER_QA],
+    poThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_PO].avg,
+    devThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
+    qaThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
+    scoreboardData: scores
+  }));
 
   console.log('System lead times', leadTimeReduced);
   console.log('Work center lead times', leadTimesByWorkCenterReduced);
@@ -425,13 +481,13 @@ setInterval(() => {
 
 const collectUsernames = (lastTweetId) => {
   let usernames = new Set();
-  usernames.add(`@${tweetUsernameById[lastTweetId]}`);
+  usernames.add(tweetUsernameById[lastTweetId]);
   let parentId = tweetParentById[lastTweetId];
 
   while (parentId) {
     let tweetId = parentId;
     parentId = tweetParentById[tweetId];
-    usernames.add(`@${tweetUsernameById[tweetId]}`);
+    usernames.add(tweetUsernameById[tweetId]);
   }
   return [...usernames];
 };
@@ -445,6 +501,7 @@ setInterval(() => {
     if (notification.type === NOTIFICATION_TASK_COMPLETED) {
       const threadId = notification.threadId;
       const usernames = collectUsernames(notification.lastTweetId);
+      const usernamesStr = usernames.map(u => `@${u}`).join(' ');
       const qaUsername = tweetUsernameById[notification.lastTweetId];
       const lastTweetId = notification.lastTweetId;
       const leadTime = Math.round((
@@ -453,7 +510,7 @@ setInterval(() => {
       ) / 1000);
 
       const text = (
-        `${usernames.join(' ')} congrats on your finished task 🙌  ` +
+        `${usernamesStr} congrats on your finished task 🙌  ` +
         `Your time: ${leadTime}s. ` +
         getTweetUrl(qaUsername, lastTweetId)
       );
@@ -476,7 +533,7 @@ setInterval(() => {
       );
 
       const poId = poList[poIndex];
-      const poUsername = twitterUsernameByUserId[poId];
+      const poUsername = usernameByUserId[poId];
       const tweetId = notification.tweetId;
       const customerUsername = tweetUsernameById[tweetId];
       const text = (
@@ -501,7 +558,7 @@ setInterval(() => {
       );
 
       const devId = devList[devIndex];
-      const devUsername = twitterUsernameByUserId[devId];
+      const devUsername = usernameByUserId[devId];
       const tweetId = notification.tweetId;
       const poUsername = tweetUsernameById[tweetId];
       const text = (
@@ -548,7 +605,7 @@ setInterval(() => {
       );
 
       const qaId = qaList[qaIndex];
-      const qaUsername = twitterUsernameByUserId[qaId];
+      const qaUsername = usernameByUserId[qaId];
       const tweetId = notification.tweetId;
       const devUsername = tweetUsernameById[tweetId];
       const text = (
@@ -571,3 +628,4 @@ setInterval(() => {
 
 
 // TODO: more variations of texts
+
