@@ -18,6 +18,13 @@ const WORK_CENTER_DEV = 'dev';
 const WORK_CENTER_QA = 'qa';
 const DONE = 'done';
 
+const USER_CATEGORIES = [
+  'customer',
+  'po',
+  'dev',
+  'qa'
+];
+
 const TWEET_CUSTOMER = 'customer_tweet';
 const TWEET_PO = 'po_tweet';
 const TWEET_DEV = 'dev_tweet';
@@ -82,39 +89,6 @@ const WORK_CENTER_BY_TWEET_TYPE = {
   [TWEET_QA_REJECTED]: WORK_CENTER_QA
 };
 
-const customerList = [
-  '929069070892355585',
-  '171462019'
-];
-
-const poList = [
-  '929069070892355585',
-  // '171462019'
-];
-
-const devList = [
-  '929069070892355585'
-];
-
-const qaList = [
-  '929069070892355585'
-];
-
-const customerSet = new Set(customerList);
-const poSet = new Set(poList);
-const devSet = new Set(devList);
-const qaSet = new Set(qaList);
-
-
-const usernameByUserId = {
-  '929069070892355585': 'mngr999',
-  '171462019': 'flpvsk'
-};
-
-
-const gameHashTag = 'yo';
-
-const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
 const hasGif = (msg) => {
   if (!msg || !msg.extended_entities || !msg.extended_entities.media) {
@@ -147,18 +121,6 @@ const client = new Twitter({
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
 });
 
-const usersToFollow = (
-  [
-    ...(new Set([
-      ...customerSet,
-      ...devSet,
-      ...poSet,
-      ...qaSet
-    ]))
-  ].join(',')
-);
-
-
 // State (all the indexes required)
 const tweetThreads = new Set();
 const tweetTimeById = {};
@@ -169,172 +131,302 @@ const tweetTypeById = {};
 const threadStatusById = {};
 const tweetUsernameById = {};
 const notifications = [];
-// End State
+
+// State (users)
+
+const ADMIN_ID = '929069070892355585';// '171462019';
+const SELF_ID = '929069070892355585';
+
+let usersByCategory = {
+  'customer': [
+    // '929069070892355585',
+    // '171462019'
+  ],
+  'po': [
+    // '929069070892355585'
+  ],
+  'dev': [
+    // '929069070892355585'
+  ],
+  'qa': [
+    // '929069070892355585'
+  ]
+};
+
+let categoryByUserId = {};
+
+let usernameByUserId = {
+  // '929069070892355585': 'mngr999',
+  // '171462019': 'flpvsk'
+};
+
+// State (game)
+
+let globalStream;
+let gameHashTag = undefined;
+const isGameHashTag = (htObj) => htObj.text === gameHashTag;
+
+const startWatching = () => {
+  const customerSet = new Set(U);
+  const poSet = new Set(poList);
+  const devSet = new Set(devList);
+  const qaSet = new Set(qaList);
+
+  const usersToFollow = (
+    [
+      ...(new Set([
+        ...customerSet,
+        ...devSet,
+        ...poSet,
+        ...qaSet
+      ]))
+    ].join(',')
+  );
+
+  client.stream('statuses/filter',
+    {follow: `${usersToFollow}`},
+    (stream) => {
+      globalStream = stream;
+
+      stream.on('error', (err) => {
+        console.error(err);
+        process.exit(1);
+      });
+
+      stream.on('data', (msg) => {
+        if (!isTweet(msg)) {
+          const str = util.inspect(msg, {depth: null});
+          console.warn('Not a tweet', str);
+          return;
+        }
+
+        if (msg.retweeted_status) {
+          const url = getTweetUrl(msg.user.screen_name, msg.id_str);
+          console.warn('Ignoring a retweet', url);
+          return;
+        }
+
+        // console.log(str);
+
+        const userId = msg.user.id_str;
+        const username = msg.user.screen_name;
+        const tweetId = msg.id_str;
+        const parentId = msg.in_reply_to_status_id_str;
+        const timestamp = parseInt(msg.timestamp_ms);
 
 
-client.stream('statuses/filter',
-  {follow: `${usersToFollow}`},
-  (stream) => {
-    stream.on('error', (err) => {
-      console.error(err);
-      process.exit(1);
-    });
-
-
-    stream.on('data', (msg) => {
-      if (!isTweet(msg)) {
-        const str = util.inspect(msg, {depth: null});
-        console.warn('Not a tweet', str);
-        return;
-      }
-
-      if (msg.retweeted_status) {
-        const url = getTweetUrl(msg.user.screen_name, msg.id_str);
-        console.warn('Ignoring a retweet', url);
-        return;
-      }
-
-      // console.log(str);
-
-      const userId = msg.user.id_str;
-      const username = msg.user.screen_name;
-      const tweetId = msg.id_str;
-      const parentId = msg.in_reply_to_status_id_str;
-      const timestamp = parseInt(msg.timestamp_ms);
-
-
-      // 1. Customer tweets something with a hashtag: C1
-      if (
-        customerSet.has(userId) &&
-        _.some(msg.entities.hashtags, isGameHashTag) &&
-        !parentId
-      ) {
-        tweetTimeById[tweetId] = timestamp;
-        tweetTypeById[tweetId] = TWEET_CUSTOMER;
-        tweetThreadById[tweetId] = tweetId;
-        tweetUsernameById[tweetId] = username;
-        threadStatusById[tweetId] = WORK_CENTER_PO;
-        tweetThreads.add(tweetId);
-
-        notifications.push({
-          type: NOTIFICATION_FOR_PO,
-          tweetId: tweetId
-        });
-
-        return;
-      }
-
-
-      // 2. PO replies to C1 with a gif: P1
-      if (
-        poSet.has(userId) &&
-        hasGif(msg) &&
-        tweetTypeById[parentId] === TWEET_CUSTOMER
-      ) {
-        tweetTimeById[tweetId] = timestamp;
-        tweetTypeById[tweetId] = TWEET_PO;
-        tweetUsernameById[tweetId] = username;
-        tweetParentById[tweetId] = parentId;
-        tweetThreadById[tweetId] = parentId;
-        threadStatusById[parentId] = WORK_CENTER_DEV;
-
-        notifications.push({
-          type: NOTIFICATION_FOR_DEV_NEW,
-          tweetId: tweetId
-        });
-
-        return;
-      }
-
-      const hasDevOrQATweetParent = (
-        tweetTypeById[parentId] === TWEET_PO ||
-        tweetTypeById[parentId] === TWEET_QA_REJECTED
-      );
-
-      // 3. DEV replies to P1 with emoji
-      if (
-        devSet.has(userId) &&
-        emojiRegex.test(msg.text) &&
-        hasDevOrQATweetParent
-      ) {
-        const threadId = tweetThreadById[parentId];
-
-        tweetThreadById[tweetId] = threadId;
-        tweetParentById[tweetId] = parentId;
-        tweetUsernameById[tweetId] = username;
-        tweetTimeById[tweetId] = timestamp;
-        tweetTypeById[tweetId] = TWEET_DEV;
-
-        if (!threadEndById[threadId]) {
-          threadStatusById[threadId] = WORK_CENTER_QA;
+        // 1. Customer tweets something with a hashtag: C1
+        if (
+          customerSet.has(userId) &&
+          _.some(msg.entities.hashtags, isGameHashTag) &&
+          !parentId
+        ) {
+          tweetTimeById[tweetId] = timestamp;
+          tweetTypeById[tweetId] = TWEET_CUSTOMER;
+          tweetThreadById[tweetId] = tweetId;
+          tweetUsernameById[tweetId] = username;
+          threadStatusById[tweetId] = WORK_CENTER_PO;
+          tweetThreads.add(tweetId);
 
           notifications.push({
-            type: NOTIFICATION_FOR_QA,
+            type: NOTIFICATION_FOR_PO,
             tweetId: tweetId
           });
 
           return;
         }
-      }
 
 
-      // 4. QA approving
-      if (
-        qaSet.has(userId) &&
-        tweetTypeById[parentId] === TWEET_DEV &&
-        isPositiveAnswer(msg.text)
-      ) {
-        const threadId = tweetThreadById[parentId];
+        // 2. PO replies to C1 with a gif: P1
+        if (
+          poSet.has(userId) &&
+          hasGif(msg) &&
+          tweetTypeById[parentId] === TWEET_CUSTOMER
+        ) {
+          tweetTimeById[tweetId] = timestamp;
+          tweetTypeById[tweetId] = TWEET_PO;
+          tweetUsernameById[tweetId] = username;
+          tweetParentById[tweetId] = parentId;
+          tweetThreadById[tweetId] = parentId;
+          threadStatusById[parentId] = WORK_CENTER_DEV;
 
-        tweetThreadById[tweetId] = threadId;
-        tweetParentById[tweetId] = parentId;
-        tweetUsernameById[tweetId] = username;
-        tweetTimeById[tweetId] = timestamp;
-        tweetTypeById[tweetId] = TWEET_QA_APPROVED;
+          notifications.push({
+            type: NOTIFICATION_FOR_DEV_NEW,
+            tweetId: tweetId
+          });
 
-        threadEndById[threadId] = tweetId;
-        threadStatusById[threadId] = DONE;
-
-        notifications.push({
-          type: NOTIFICATION_TASK_COMPLETED,
-          threadId: threadId,
-          lastTweetId: tweetId
-        });
-
-        return;
-      }
-
-
-      // 4. QA rejecting
-      if (
-        qaSet.has(userId) &&
-        tweetTypeById[parentId] === TWEET_DEV &&
-        !isPositiveAnswer(msg.text)
-      ) {
-        const threadId = tweetThreadById[parentId];
-
-        tweetThreadById[tweetId] = threadId;
-        tweetParentById[tweetId] = parentId;
-        tweetUsernameById[tweetId] = username;
-        tweetTimeById[tweetId] = timestamp;
-        tweetTypeById[tweetId] = TWEET_QA_REJECTED;
-
-        if (threadEndById[threadId]) {
           return;
         }
 
-        threadStatusById[threadId] = WORK_CENTER_DEV;
-        notifications.push({
-          type: NOTIFICATION_FOR_DEV_REJECTED,
-          tweetId: tweetId,
-          devUsername: tweetUsernameById[parentId]
-        });
-        return;
-      }
+        const hasDevOrQATweetParent = (
+          tweetTypeById[parentId] === TWEET_PO ||
+          tweetTypeById[parentId] === TWEET_QA_REJECTED
+        );
+
+        // 3. DEV replies to P1 with emoji
+        if (
+          devSet.has(userId) &&
+          emojiRegex.test(msg.text) &&
+          hasDevOrQATweetParent
+        ) {
+          const threadId = tweetThreadById[parentId];
+
+          tweetThreadById[tweetId] = threadId;
+          tweetParentById[tweetId] = parentId;
+          tweetUsernameById[tweetId] = username;
+          tweetTimeById[tweetId] = timestamp;
+          tweetTypeById[tweetId] = TWEET_DEV;
+
+          if (!threadEndById[threadId]) {
+            threadStatusById[threadId] = WORK_CENTER_QA;
+
+            notifications.push({
+              type: NOTIFICATION_FOR_QA,
+              tweetId: tweetId
+            });
+
+            return;
+          }
+        }
+
+
+        // 4. QA approving
+        if (
+          qaSet.has(userId) &&
+          tweetTypeById[parentId] === TWEET_DEV &&
+          isPositiveAnswer(msg.text)
+        ) {
+          const threadId = tweetThreadById[parentId];
+
+          tweetThreadById[tweetId] = threadId;
+          tweetParentById[tweetId] = parentId;
+          tweetUsernameById[tweetId] = username;
+          tweetTimeById[tweetId] = timestamp;
+          tweetTypeById[tweetId] = TWEET_QA_APPROVED;
+
+          threadEndById[threadId] = tweetId;
+          threadStatusById[threadId] = DONE;
+
+          notifications.push({
+            type: NOTIFICATION_TASK_COMPLETED,
+            threadId: threadId,
+            lastTweetId: tweetId
+          });
+
+          return;
+        }
+
+
+        // 4. QA rejecting
+        if (
+          qaSet.has(userId) &&
+          tweetTypeById[parentId] === TWEET_DEV &&
+          !isPositiveAnswer(msg.text)
+        ) {
+          const threadId = tweetThreadById[parentId];
+
+          tweetThreadById[tweetId] = threadId;
+          tweetParentById[tweetId] = parentId;
+          tweetUsernameById[tweetId] = username;
+          tweetTimeById[tweetId] = timestamp;
+          tweetTypeById[tweetId] = TWEET_QA_REJECTED;
+
+          if (threadEndById[threadId]) {
+            return;
+          }
+
+          threadStatusById[threadId] = WORK_CENTER_DEV;
+          notifications.push({
+            type: NOTIFICATION_FOR_DEV_REJECTED,
+            tweetId: tweetId,
+            devUsername: tweetUsernameById[parentId]
+          });
+          return;
+        }
+
+      });
 
     });
+};
 
+
+let lastCheckedId = undefined;
+
+// adding users from mentions
+// starting the game
+setInterval(() => {
+  client.get('statuses/mentions_timeline', {
+    since_id: lastCheckedId,
+    include_rts: 0
+  })
+  .catch(err => {
+    console.error('Error fetching mentions', err);
+  })
+  .then(tweets => {
+    tweets = _.sortBy(tweets, t => t.id);
+    for (tweet of tweets) {
+      lastCheckedId = Math.max(lastCheckedId || 0, parseInt(tweet.id));
+
+      if (tweet.retweeted_status) {
+        continue;
+      }
+
+      if (tweet.id < lastCheckedId) {
+        continue;
+      }
+
+      // start new game
+      if (
+        tweet.user.id_str === ADMIN_ID &&
+        tweet.text.toLowerCase().indexOf('start') > -1 &&
+        tweet.entities.hashtags &&
+        tweet.entities.hashtags.length > 0 &&
+        tweet.entities.hashtags[0].text !== gameHashTag
+      ) {
+        gameHashTag = tweet.entities.hashtags[0].text;
+
+        console.log('Starting a game with', gameHashTag);
+        globalStream && globalStream.destroy();
+        startWatching();
+      }
+
+      // adding users
+      if (
+        !usernameByUserId[tweet.user.id_str] &&
+        tweet.text.toLowerCase().indexOf('join') > -1
+      ) {
+        const userId = tweet.user.id_str;
+        const userCategoryIndex = (
+          Object.keys(usernameByUserId).length %
+          USER_CATEGORIES.length
+        );
+        const userCategory = USER_CATEGORIES[userCategoryIndex];
+
+        usernameByUserId[userId] = tweet.user.screen_name;
+        usersByCategory[userCategory].push(userId)
+        categoryByUserId[userId] = userCategory;
+        console.log('xxx user joined', userId, userCategory);
+      }
+
+
+      // removing users
+      if (
+        usernameByUserId[tweet.user.id_str] &&
+        tweet.text.toLowerCase().indexOf('leave') > -1
+      ) {
+        const userId = tweet.user.id_str;
+        const category = categoryByUserId[userId];
+        usernameByUserId = _.omit(usernameByUserId, userId);
+        usersByCategory[category] = _.without(
+          usersByCategory[category], userId
+        );
+        categoryByUserId = _.omit(categoryByUserId, userId);
+        console.log('xxx user left', userId, category);
+      }
+    }
   });
+
+}, 20000);
 
 
 // Reporting

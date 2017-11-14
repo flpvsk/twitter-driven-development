@@ -213,9 +213,9 @@ class App extends Component {
 
 
 
-
+/*
 const TEST_STATE = {
-  hashtag: '#kanbanbanan',
+  hashtag: 'kanbanbanan',
   participantsNumber: 3,
   tasksInProgressNumber: 10,
   tasksDoneNumber: 3,
@@ -267,6 +267,7 @@ const TEST_STATE = {
 
 App.defaultProps = TEST_STATE;
 
+*/
 
 
 export default App;
