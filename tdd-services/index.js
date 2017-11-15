@@ -36,6 +36,8 @@ const NOTIFICATION_FOR_PO = 'NOTIFICATION_FOR_PO';
 const NOTIFICATION_FOR_DEV_NEW = 'NOTIFICATION_FOR_DEV_NEW';
 const NOTIFICATION_FOR_DEV_REJECTED = 'NOTIFICATION_FOR_DEV_REJECTED';
 const NOTIFICATION_FOR_QA = 'NOTIFICATION_FOR_QA';
+const NOTIFICATION_USER_JOINED = 'NOTIFICATION_USER_JOINED';
+const NOTIFICATION_USER_LEFT = 'NOTIFICATION_USER_LEFT';
 
 const NOTIFICATION_TEXT_BY_TYPE = {
   [NOTIFICATION_TASK_COMPLETED]: [
@@ -238,10 +240,17 @@ const startWatching = () => {
             USER_CATEGORIES.length
           );
           const userCategory = USER_CATEGORIES[userCategoryIndex];
+          const username = msg.user.screen_name;
 
-          usernameByUserId[userId] = msg.user.screen_name;
+          usernameByUserId[userId] = username;
           usersByCategory[userCategory].push(userId)
           categoryByUserId[userId] = userCategory;
+          notifications.push({
+            type: NOTIFICATION_USER_JOINED,
+            userId,
+            username,
+            category: userCategory
+          });
           startWatching();
           console.log('user joined', userId, userCategory);
         }
@@ -254,11 +263,21 @@ const startWatching = () => {
         ) {
           const userId = msg.user.id_str;
           const category = categoryByUserId[userId];
+          const username = msg.user.screen_name;
+
           usernameByUserId = _.omit(usernameByUserId, userId);
           usersByCategory[category] = _.without(
             usersByCategory[category], userId
           );
           categoryByUserId = _.omit(categoryByUserId, userId);
+
+          notifications.push({
+            type: NOTIFICATION_USER_LEFT,
+            userId,
+            username,
+            category
+          });
+
           console.log('user left', userId, category);
         }
 
@@ -689,6 +708,45 @@ setInterval(() => {
         `Reply to the tweet referenced below with ` +
         `"approved" or "rejected"` +
         getTweetUrl(devUsername, tweetId)
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+
+    NOTIFICATION_USER_JOINED;
+    NOTIFICATION_USER_LEFT;
+
+    if (notification.type === NOTIFICATION_USER_JOINED) {
+      const text = (
+        `@${notification.username} thanks for joining ` +
+        `our disruptive startup!\n\n` +
+        `Your role: ${notification.category.toUpperCase()}.\n\n` +
+        `Here's smth from our HR: ` +
+        `https://github.com/flpvsk/twitter-driven-development` +
+        `/blob/master/README.md`
+      );
+
+      console.log('sending', text);
+
+      client
+        .post('statuses/update', {status: text})
+        .catch((err) => {
+          console.error('Can\'t send notification', text, err);
+        });
+    }
+
+    if (notification.type === NOTIFICATION_USER_LEFT) {
+      const text = (
+        `@${notification.username} sorry to see you go... ` +
+        `We do hope that you'll return all the company pens ` +
+        `you took home.`
       );
 
       console.log('sending', text);
