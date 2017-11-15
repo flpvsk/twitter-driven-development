@@ -233,6 +233,7 @@ const startWatching = () => {
 
           console.log('Starting a game with', gameHashTag);
           startWatching();
+          return;
         }
 
         // Adding user
@@ -241,11 +242,18 @@ const startWatching = () => {
           msg.text.toLowerCase().indexOf('join') > -1
         ) {
           const userId = msg.user.id_str;
+
+          let userCategory = _.find(USER_CATEGORIES, (cat) => {
+            return msg.text.toLowerCase().indexOf(cat) > -1;
+          });
+
           const userCategoryIndex = (
             Object.keys(usernameByUserId).length %
             USER_CATEGORIES.length
           );
-          const userCategory = USER_CATEGORIES[userCategoryIndex];
+
+          userCategory = userCategory || USER_CATEGORIES[userCategoryIndex];
+
           const username = msg.user.screen_name;
 
           usernameByUserId[userId] = username;
@@ -259,6 +267,7 @@ const startWatching = () => {
           });
           startWatching();
           console.log('user joined', userId, userCategory);
+          return;
         }
 
 
@@ -285,6 +294,7 @@ const startWatching = () => {
           });
 
           console.log('user left', userId, category);
+          return;
         }
 
         // During-game actions
