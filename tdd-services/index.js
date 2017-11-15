@@ -136,6 +136,7 @@ const notifications = [];
 
 const ADMIN_ID = '929069070892355585';// '171462019';
 const SELF_ID = '929069070892355585';
+const SELF_USERNAME = 'mngr999';
 
 let usersByCategory = {
   customer: [
@@ -166,6 +167,7 @@ let globalStream;
 let gameHashTag = undefined;
 const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
+
 const startWatching = () => {
   globalStream && globalStream.destroy();
 
@@ -186,7 +188,7 @@ const startWatching = () => {
   );
 
   client.stream('statuses/filter',
-    {follow: `${usersToFollow}`},
+    {follow: `${usersToFollow}`, track: `@${SELF_USERNAME}`},
     (stream) => {
       globalStream = stream;
 
@@ -210,6 +212,57 @@ const startWatching = () => {
 
         // console.log(str);
 
+        // Pre-game actions
+        // Starting new game
+        if (
+          msg.user.id_str === ADMIN_ID &&
+          msg.text.toLowerCase().indexOf('start') > -1 &&
+          msg.entities.hashtags &&
+          msg.entities.hashtags.length > 0 &&
+          msg.entities.hashtags[0].text !== gameHashTag
+        ) {
+          gameHashTag = msg.entities.hashtags[0].text;
+
+          console.log('Starting a game with', gameHashTag);
+          startWatching();
+        }
+
+        // Adding user
+        if (
+          !usernameByUserId[msg.user.id_str] &&
+          msg.text.toLowerCase().indexOf('join') > -1
+        ) {
+          const userId = msg.user.id_str;
+          const userCategoryIndex = (
+            Object.keys(usernameByUserId).length %
+            USER_CATEGORIES.length
+          );
+          const userCategory = USER_CATEGORIES[userCategoryIndex];
+
+          usernameByUserId[userId] = msg.user.screen_name;
+          usersByCategory[userCategory].push(userId)
+          categoryByUserId[userId] = userCategory;
+          startWatching();
+          console.log('user joined', userId, userCategory);
+        }
+
+
+        // Removing user
+        if (
+          usernameByUserId[msg.user.id_str] &&
+          msg.text.toLowerCase().indexOf('leave') > -1
+        ) {
+          const userId = msg.user.id_str;
+          const category = categoryByUserId[userId];
+          usernameByUserId = _.omit(usernameByUserId, userId);
+          usersByCategory[category] = _.without(
+            usersByCategory[category], userId
+          );
+          categoryByUserId = _.omit(categoryByUserId, userId);
+          console.log('user left', userId, category);
+        }
+
+        // During-game actions
         const userId = msg.user.id_str;
         const username = msg.user.screen_name;
         const tweetId = msg.id_str;
@@ -350,85 +403,6 @@ const startWatching = () => {
 
     });
 };
-
-
-let lastCheckedId = undefined;
-
-// adding users from mentions
-// starting the game
-setInterval(() => {
-  client.get('statuses/mentions_timeline', {
-    since_id: lastCheckedId,
-    include_rts: 0
-  })
-  .catch(err => {
-    console.error('Error fetching mentions', err);
-  })
-  .then(tweets => {
-    tweets = _.sortBy(tweets, t => t.id);
-    for (tweet of tweets) {
-      lastCheckedId = Math.max(lastCheckedId || 0, parseInt(tweet.id));
-
-      if (tweet.retweeted_status) {
-        continue;
-      }
-
-      if (tweet.id < lastCheckedId) {
-        continue;
-      }
-
-      // start new game
-      if (
-        tweet.user.id_str === ADMIN_ID &&
-        tweet.text.toLowerCase().indexOf('start') > -1 &&
-        tweet.entities.hashtags &&
-        tweet.entities.hashtags.length > 0 &&
-        tweet.entities.hashtags[0].text !== gameHashTag
-      ) {
-        gameHashTag = tweet.entities.hashtags[0].text;
-
-        console.log('Starting a game with', gameHashTag);
-        startWatching();
-      }
-
-      // adding users
-      if (
-        !usernameByUserId[tweet.user.id_str] &&
-        tweet.text.toLowerCase().indexOf('join') > -1
-      ) {
-        const userId = tweet.user.id_str;
-        const userCategoryIndex = (
-          Object.keys(usernameByUserId).length %
-          USER_CATEGORIES.length
-        );
-        const userCategory = USER_CATEGORIES[userCategoryIndex];
-
-        usernameByUserId[userId] = tweet.user.screen_name;
-        usersByCategory[userCategory].push(userId)
-        categoryByUserId[userId] = userCategory;
-        startWatching();
-        console.log('xxx user joined', userId, userCategory);
-      }
-
-
-      // removing users
-      if (
-        usernameByUserId[tweet.user.id_str] &&
-        tweet.text.toLowerCase().indexOf('leave') > -1
-      ) {
-        const userId = tweet.user.id_str;
-        const category = categoryByUserId[userId];
-        usernameByUserId = _.omit(usernameByUserId, userId);
-        usersByCategory[category] = _.without(
-          usersByCategory[category], userId
-        );
-        categoryByUserId = _.omit(categoryByUserId, userId);
-        console.log('xxx user left', userId, category);
-      }
-    }
-  });
-
-}, 20000);
 
 
 // Reporting
@@ -731,3 +705,4 @@ setInterval(() => {
 
 // TODO: more variations of texts
 
+startWatching();
