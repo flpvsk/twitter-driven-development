@@ -167,6 +167,8 @@ let gameHashTag = undefined;
 const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
 const startWatching = () => {
+  globalStream && globalStream.destroy();
+
   const customerSet = new Set(usersByCategory.customer);
   const poSet = new Set(usersByCategory.po);
   const devSet = new Set(usersByCategory.dev);
@@ -386,7 +388,6 @@ setInterval(() => {
         gameHashTag = tweet.entities.hashtags[0].text;
 
         console.log('Starting a game with', gameHashTag);
-        globalStream && globalStream.destroy();
         startWatching();
       }
 
@@ -405,6 +406,7 @@ setInterval(() => {
         usernameByUserId[userId] = tweet.user.screen_name;
         usersByCategory[userCategory].push(userId)
         categoryByUserId[userId] = userCategory;
+        startWatching();
         console.log('xxx user joined', userId, userCategory);
       }
 
