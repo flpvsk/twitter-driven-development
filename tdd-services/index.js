@@ -167,6 +167,7 @@ let usernameByUserId = {
 
 let globalStream;
 let gameHashTag = undefined;
+// gameHashTag = 'test';
 const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
 
@@ -339,7 +340,7 @@ const startWatching = () => {
           poSet.has(userId) &&
           hasGif(msg) &&
           tweetTypeById[parentId] === TWEET_CUSTOMER &&
-          !!threadEndById[parentId]
+          !threadEndById[parentId]
         ) {
           tweetTimeById[tweetId] = timestamp;
           tweetTypeById[tweetId] = TWEET_PO;
