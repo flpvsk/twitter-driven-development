@@ -530,7 +530,7 @@ setInterval(() => {
     let deviation = Math.sqrt(variance);
     let tasksDoneNumber = leadTimes.length;
     let points = Math.round(
-      Math.pow(tasksDoneNumber, 2) /
+      Math.pow(tasksDoneNumber, 2) * 1000000 /
       (mean * (deviation || 10))
     );
     let score = {
