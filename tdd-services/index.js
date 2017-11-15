@@ -745,8 +745,8 @@ setInterval(() => {
     if (notification.type === NOTIFICATION_USER_LEFT) {
       const text = (
         `@${notification.username} sorry to see you go... ` +
-        `We do hope that you'll return all the company pens ` +
-        `you took home.`
+        `We do hope that you'll return all the pens ` +
+        `you took home from the office.`
       );
 
       console.log('sending', text);
