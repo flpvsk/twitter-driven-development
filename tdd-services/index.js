@@ -757,7 +757,7 @@ setInterval(() => {
       const text = (
         `@${qaUsername} Check out this implementation from a developer. ` +
         `Reply to the tweet referenced below with ` +
-        `"approved" or "rejected"` +
+        `"approved" or "rejected" ` +
         getTweetUrl(devUsername, tweetId)
       );
 
