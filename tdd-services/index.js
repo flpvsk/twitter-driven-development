@@ -529,11 +529,16 @@ setInterval(() => {
     let min = _.min(leadTimes);
     let max = _.max(leadTimes);
     let mean = _.mean(leadTimes);
-    let variance = Math.pow(max - min, 2);
+    let variance = (
+      leadTimes.reduce((acc, leadTime) => {
+        return acc + Math.pow(leadTime - mean, 2);
+      }, 0) / leadTimes.length
+    );
+    let deviation = Math.sqrt(variance);
     let tasksDoneNumber = leadTimes.length;
     let points = Math.round(
-      mean * tasksDoneNumber /
-      (variance || 10)
+      Math.pow(tasksDoneNumber, 2) /
+      (mean * (deviation || 10))
     );
     let score = {
       usernames: usernamesByTeamId[teamId],
