@@ -212,6 +212,12 @@ const startWatching = () => {
           return;
         }
 
+        if (msg.is_quote_status) {
+          const url = getTweetUrl(msg.user.screen_name, msg.id_str);
+          console.warn('Ignoring a quote', url);
+          return;
+        }
+
         // console.log(str);
 
         // Pre-game actions
@@ -293,6 +299,7 @@ const startWatching = () => {
         if (
           customerSet.has(userId) &&
           _.some(msg.entities.hashtags, isGameHashTag) &&
+          !tweetThreads.has(tweetId) &&
           !parentId
         ) {
           tweetTimeById[tweetId] = timestamp;
@@ -307,6 +314,12 @@ const startWatching = () => {
             tweetId: tweetId
           });
 
+          console.log(
+            '[game]',
+            'new job',
+            getTweetUrl(username, tweetId)
+          );
+
           return;
         }
 
@@ -315,7 +328,8 @@ const startWatching = () => {
         if (
           poSet.has(userId) &&
           hasGif(msg) &&
-          tweetTypeById[parentId] === TWEET_CUSTOMER
+          tweetTypeById[parentId] === TWEET_CUSTOMER &&
+          !!threadEndById[parentId]
         ) {
           tweetTimeById[tweetId] = timestamp;
           tweetTypeById[tweetId] = TWEET_PO;
@@ -328,6 +342,12 @@ const startWatching = () => {
             type: NOTIFICATION_FOR_DEV_NEW,
             tweetId: tweetId
           });
+
+          console.log(
+            '[game]',
+            'job moved to DEV',
+            getTweetUrl(username, tweetId)
+          );
 
           return;
         }
@@ -353,6 +373,12 @@ const startWatching = () => {
 
           if (!threadEndById[threadId]) {
             threadStatusById[threadId] = WORK_CENTER_QA;
+
+            console.log(
+              '[game]',
+              'job moved to QA',
+              getTweetUrl(username, tweetId)
+            );
 
             notifications.push({
               type: NOTIFICATION_FOR_QA,
@@ -387,6 +413,12 @@ const startWatching = () => {
             lastTweetId: tweetId
           });
 
+          console.log(
+            '[game]',
+            'job completed',
+            getTweetUrl(username, tweetId)
+          );
+
           return;
         }
 
@@ -415,6 +447,14 @@ const startWatching = () => {
             tweetId: tweetId,
             devUsername: tweetUsernameById[parentId]
           });
+
+
+          console.log(
+            '[game]',
+            'job rejected',
+            getTweetUrl(username, tweetId)
+          );
+
           return;
         }
 
