@@ -12,7 +12,7 @@ const broadcast = (data) => {
 
 
 const startServer = () => {
-  wss = new ws.Server({port: 8080});
+  wss = new ws.Server({port: process.env.WEB_SOCKET_PORT});
   wss.on('connection', () => {
     console.log('[api] client connected');
   });

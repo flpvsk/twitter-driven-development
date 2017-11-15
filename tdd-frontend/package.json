@@ -2,6 +2,7 @@
   "name": "tdd-frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://flpvsk.com/tdd",
   "proxy": {
     "/api": {
       "target": "ws://localhost:8080/api"
