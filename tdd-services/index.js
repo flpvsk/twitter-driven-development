@@ -634,7 +634,7 @@ const report = () => {
     scores.push(score);
   }
 
-  scores = _.sortBy(scores, (score) => score.points);
+  scores = _.sortBy(scores, (score) => -score.points);
   _.forEach(scores, (score, index) => {
     score.place = index + 1;
   });
