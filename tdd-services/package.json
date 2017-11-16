@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/flpvsk/twitter-driven-development#readme",
   "dependencies": {
+    "bluebird": "^3.5.1",
     "dotenv": "^4.0.0",
     "emoji-regex": "^6.5.1",
     "lodash": "^4.17.4",

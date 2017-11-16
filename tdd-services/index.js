@@ -4,6 +4,7 @@ const util = require('util');
 const Twitter = require('twitter');
 const emojiRegex = require('emoji-regex')();
 const api = require('./api');
+const data = require('./data');
 
 api.startServer();
 
@@ -124,6 +125,7 @@ const client = new Twitter({
 });
 
 // State (all the indexes required)
+/*
 const tweetThreads = new Set();
 const tweetTimeById = {};
 const tweetParentById = {};
@@ -133,6 +135,7 @@ const tweetTypeById = {};
 const threadStatusById = {};
 const tweetUsernameById = {};
 const notifications = [];
+*/
 
 // State (users)
 
@@ -140,6 +143,7 @@ const ADMIN_ID = '929069070892355585';// '171462019';
 const SELF_ID = '929069070892355585';
 const SELF_USERNAME = 'mngr999';
 
+/*
 let usersByCategory = {
   customer: [
     // '929069070892355585',
@@ -156,327 +160,384 @@ let usersByCategory = {
   ]
 };
 
-let categoryByUserId = {};
-
 let usernameByUserId = {
   // '929069070892355585': 'mngr999',
   // '171462019': 'flpvsk'
 };
 
+*/
+
 // State (game)
 
 let globalStream;
-let gameHashTag = undefined;
-// gameHashTag = 'test';
-const isGameHashTag = (htObj) => htObj.text === gameHashTag;
 
+const watch = () => {
+  startWatching()
+    .catch(e => {
+      console.log('Error in watcher', e);
+      process.exit(1);
+    });
+};
 
-const startWatching = () => {
+const startWatching = async function startWatching() {
   globalStream && globalStream.destroy();
 
-  const customerSet = new Set(usersByCategory.customer);
-  const poSet = new Set(usersByCategory.po);
-  const devSet = new Set(usersByCategory.dev);
-  const qaSet = new Set(usersByCategory.qa);
+  const usersToFollow = await data.usernameByUserId.getUserIdSet();
+  const gameHashtag = await data.currentGameHashtag.get();
+  const isGameHashTag = (htObj) => htObj.text === gameHashtag;
+  const queryObj = {
+    track: `@${SELF_USERNAME}`,
+    follow: `${usersToFollow.join(',')}`
+  };
 
-  const usersToFollow = (
-    [
-      ...(new Set([
-        ...customerSet,
-        ...devSet,
-        ...poSet,
-        ...qaSet
-      ]))
-    ].join(',')
-  );
+  client.stream('statuses/filter', queryObj, (stream) => {
+    globalStream = stream;
 
-  client.stream('statuses/filter',
-    {follow: `${usersToFollow}`, track: `@${SELF_USERNAME}`},
-    (stream) => {
-      globalStream = stream;
+    stream.on('error', (err) => {
+      console.error(err);
+      process.exit(1);
+    });
 
-      stream.on('error', (err) => {
-        console.error(err);
-        process.exit(1);
-      });
+    stream.on('data', async (msg) => {
+      if (!isTweet(msg)) {
+        const str = util.inspect(msg, {depth: null});
+        console.warn('Not a tweet', str);
+        return;
+      }
 
-      stream.on('data', (msg) => {
-        if (!isTweet(msg)) {
-          const str = util.inspect(msg, {depth: null});
-          console.warn('Not a tweet', str);
-          return;
-        }
+      if (msg.retweeted_status) {
+        const url = getTweetUrl(msg.user.screen_name, msg.id_str);
+        console.warn('Ignoring a retweet', url);
+        return;
+      }
 
-        if (msg.retweeted_status) {
-          const url = getTweetUrl(msg.user.screen_name, msg.id_str);
-          console.warn('Ignoring a retweet', url);
-          return;
-        }
+      if (msg.is_quote_status) {
+        const url = getTweetUrl(msg.user.screen_name, msg.id_str);
+        console.warn('Ignoring a quote', url);
+        return;
+      }
 
-        if (msg.is_quote_status) {
-          const url = getTweetUrl(msg.user.screen_name, msg.id_str);
-          console.warn('Ignoring a quote', url);
-          return;
-        }
+      // console.log(str);
 
-        // console.log(str);
+      // Pre-game actions
+      // Starting new game
+      if (
+        msg.user.id_str === ADMIN_ID &&
+        msg.text.toLowerCase().indexOf('start') > -1 &&
+        msg.entities.hashtags &&
+        msg.entities.hashtags.length > 0 &&
+        msg.entities.hashtags[0].text !== gameHashtag
+      ) {
+        await data.currentGameHashTag.set(msg.entities.hashtags[0].text);
 
-        // Pre-game actions
-        // Starting new game
-        if (
-          msg.user.id_str === ADMIN_ID &&
-          msg.text.toLowerCase().indexOf('start') > -1 &&
-          msg.entities.hashtags &&
-          msg.entities.hashtags.length > 0 &&
-          msg.entities.hashtags[0].text !== gameHashTag
-        ) {
-          gameHashTag = msg.entities.hashtags[0].text;
+        console.log('Starting a game with', gameHashtag);
+        watch();
+        return;
+      }
 
-          console.log('Starting a game with', gameHashTag);
-          startWatching();
-          return;
-        }
+      const hasUserJoined = await data.usernameByUserId.has(
+        msg.user.id_str
+      );
 
-        // Adding user
-        if (
-          !usernameByUserId[msg.user.id_str] &&
-          msg.text.toLowerCase().indexOf('join') > -1
-        ) {
-          const userId = msg.user.id_str;
+      // Adding user
+      if (
+        !hasUserJoined &&
+        msg.text.toLowerCase().indexOf('join') > -1
+      ) {
+        const userId = msg.user.id_str;
 
-          let userCategory = _.find(USER_CATEGORIES, (cat) => {
-            return msg.text.toLowerCase().indexOf(cat) > -1;
-          });
+        let userCategory = _.find(USER_CATEGORIES, (cat) => {
+          return msg.text.toLowerCase().indexOf(cat) > -1;
+        });
 
-          const userCategoryIndex = (
-            Object.keys(usernameByUserId).length %
-            USER_CATEGORIES.length
-          );
+        const usersNumber = await data.usernameByUserId.getSize();
+        const userCategoryIndex = usersNumber % USER_CATEGORIES.length;
 
-          userCategory = userCategory || USER_CATEGORIES[userCategoryIndex];
+        userCategory = userCategory || USER_CATEGORIES[userCategoryIndex];
 
-          const username = msg.user.screen_name;
+        const username = msg.user.screen_name;
 
-          usernameByUserId[userId] = username;
-          usersByCategory[userCategory].push(userId)
-          categoryByUserId[userId] = userCategory;
-          notifications.push({
-            type: NOTIFICATION_USER_JOINED,
-            userId,
-            username,
-            category: userCategory
-          });
-          startWatching();
-          console.log('user joined', userId, userCategory);
-          return;
-        }
+        await data.usernameByUserId.set(userId, username);
+        await data.usersByCategory.add(userCategory, userId);
+        await data.notifications.push({
+          type: NOTIFICATION_USER_JOINED,
+          userId,
+          username,
+          category: userCategory
+        });
+
+        console.log('user joined', userId, userCategory);
+        watch();
+        return;
+      }
 
 
-        // Removing user
-        if (
-          usernameByUserId[msg.user.id_str] &&
-          msg.text.toLowerCase().indexOf('leave') > -1
-        ) {
-          const userId = msg.user.id_str;
-          const category = categoryByUserId[userId];
-          const username = msg.user.screen_name;
-
-          usernameByUserId = _.omit(usernameByUserId, userId);
-          usersByCategory[category] = _.without(
-            usersByCategory[category], userId
-          );
-          categoryByUserId = _.omit(categoryByUserId, userId);
-
-          notifications.push({
-            type: NOTIFICATION_USER_LEFT,
-            userId,
-            username,
-            category
-          });
-
-          console.log('user left', userId, category);
-          return;
-        }
-
-        // During-game actions
+      // Removing user
+      if (
+        hasUserJoined &&
+        msg.text.toLowerCase().indexOf('leave') > -1
+      ) {
         const userId = msg.user.id_str;
         const username = msg.user.screen_name;
-        const tweetId = msg.id_str;
-        const parentId = msg.in_reply_to_status_id_str;
-        const timestamp = parseInt(msg.timestamp_ms);
 
+        await data.usernameByUserId.remove(userId);
+        await data.usersByCategory.removeFromAll(userId);
 
-        // 1. Customer tweets something with a hashtag: C1
-        if (
-          customerSet.has(userId) &&
-          _.some(msg.entities.hashtags, isGameHashTag) &&
-          !tweetThreads.has(tweetId) &&
-          !parentId
-        ) {
-          tweetTimeById[tweetId] = timestamp;
-          tweetTypeById[tweetId] = TWEET_CUSTOMER;
-          tweetThreadById[tweetId] = tweetId;
-          tweetUsernameById[tweetId] = username;
-          threadStatusById[tweetId] = WORK_CENTER_PO;
-          tweetThreads.add(tweetId);
+        await data.notifications.push({
+          type: NOTIFICATION_USER_LEFT,
+          userId,
+          username,
+          category
+        });
 
-          notifications.push({
-            type: NOTIFICATION_FOR_PO,
-            tweetId: tweetId
-          });
+        console.log('user left', userId, category);
+        return;
+      }
 
-          console.log(
-            '[game]',
-            'new job',
-            getTweetUrl(username, tweetId)
-          );
+      // During-game actions
+      const userId = msg.user.id_str;
+      const username = msg.user.screen_name;
+      const tweetId = msg.id_str;
+      const parentId = msg.in_reply_to_status_id_str;
+      const timestamp = parseInt(msg.timestamp_ms);
+      const [
+        isCustomer,
+        isPO,
+        isDev,
+        isQA,
+        doesThreadExist
+      ] = await Promise.all([
+        data.usersByCategory.has('customer', userId),
+        data.usersByCategory.has('po', userId),
+        data.usersByCategory.has('dev', userId),
+        data.usersByCategory.has('qa', userId),
+        data.tweetThreads.has(gameHashtag, tweetId)
+      ]);
 
-          return;
-        }
+      // 1. Customer tweets something with a hashtag: C1
+      if (
+        isCustomer  &&
+        _.some(msg.entities.hashtags, isGameHashTag) &&
+        !doesThreadExist &&
+        !parentId
+      ) {
 
+        await data.indexTweet({
+          gameId: gameHashtag,
+          tweet: msg,
+          newThreadStatus: WORK_CENTER_PO,
+          tweetType: TWEET_CUSTOMER,
+          threadId: tweetId
+        });
 
-        // 2. PO replies to C1 with a gif: P1
-        if (
-          poSet.has(userId) &&
-          hasGif(msg) &&
-          tweetTypeById[parentId] === TWEET_CUSTOMER &&
-          !threadEndById[parentId]
-        ) {
-          tweetTimeById[tweetId] = timestamp;
-          tweetTypeById[tweetId] = TWEET_PO;
-          tweetUsernameById[tweetId] = username;
-          tweetParentById[tweetId] = parentId;
-          tweetThreadById[tweetId] = parentId;
-          threadStatusById[parentId] = WORK_CENTER_DEV;
+        await data.notifications.push({
+          type: NOTIFICATION_FOR_PO,
+          tweetId: tweetId
+        });
 
-          notifications.push({
-            type: NOTIFICATION_FOR_DEV_NEW,
-            tweetId: tweetId
-          });
-
-          console.log(
-            '[game]',
-            'job moved to DEV',
-            getTweetUrl(username, tweetId)
-          );
-
-          return;
-        }
-
-        const hasDevOrQATweetParent = (
-          tweetTypeById[parentId] === TWEET_PO ||
-          tweetTypeById[parentId] === TWEET_QA_REJECTED
+        console.log(
+          '[game]',
+          'new job',
+          getTweetUrl(username, tweetId)
         );
 
-        // 3. DEV replies to P1 with emoji
-        if (
-          devSet.has(userId) &&
-          emojiRegex.test(msg.text) &&
-          hasDevOrQATweetParent
-        ) {
-          const threadId = tweetThreadById[parentId];
+        return;
+      }
 
-          tweetThreadById[tweetId] = threadId;
-          tweetParentById[tweetId] = parentId;
-          tweetUsernameById[tweetId] = username;
-          tweetTimeById[tweetId] = timestamp;
-          tweetTypeById[tweetId] = TWEET_DEV;
 
-          if (!threadEndById[threadId]) {
-            threadStatusById[threadId] = WORK_CENTER_QA;
+      const parentTweetType = await data.tweetTypeById.get(
+        gameHashtag,
+        parentId
+      );
+      const isThreadFinished = await data.threadEndById.get(
+        gameHashtag,
+        parentId
+      );
 
-            console.log(
-              '[game]',
-              'job moved to QA',
-              getTweetUrl(username, tweetId)
-            );
+      // 2. PO replies to C1 with a gif: P1
+      if (
+        isPO &&
+        hasGif(msg) &&
+        parentTweetType === TWEET_CUSTOMER &&
+        !isThreadFinished
+      ) {
 
-            notifications.push({
-              type: NOTIFICATION_FOR_QA,
-              tweetId: tweetId
-            });
+        await data.indexTweet({
+          gameId: gameHashtag,
+          tweet: msg,
+          newThreadStatus: WORK_CENTER_DEV,
+          tweetType: TWEET_PO,
+          threadId: parentId
+        });
 
-            return;
-          }
+        await data.notifications.push({
+          type: NOTIFICATION_FOR_DEV_NEW,
+          tweetId: tweetId
+        });
+
+        console.log(
+          '[game]',
+          'job moved to DEV',
+          getTweetUrl(username, tweetId)
+        );
+
+        return;
+      }
+
+      const hasDevOrQATweetParent = (
+        parentTweetType === TWEET_PO ||
+        parentTweetType === TWEET_QA_REJECTED
+      );
+
+      // 3. DEV replies to P1 with emoji
+      if (
+        isDev &&
+        emojiRegex.test(msg.text) &&
+        hasDevOrQATweetParent
+      ) {
+        const threadId = await data.tweetThreadById(
+          gameHashtag,
+          parentId
+        );
+        const isThreadFinished = await data.threadEndById.get(
+          gameHashtag,
+          threadId
+        );
+
+        if (!isThreadFinished) {
+          await data.indexTweet({
+            gameId: gameHashtag,
+            tweet: msg,
+            newThreadStatus: WORK_CENTER_QA,
+            tweetType: TWEET_DEV,
+            threadId
+          });
+
+          console.log(
+            '[game]',
+            'job moved to QA',
+            getTweetUrl(username, tweetId)
+          );
+
+          await data.notifications.push({
+            type: NOTIFICATION_FOR_QA,
+            tweetId: tweetId
+          });
+
+          return;
+        }
+      }
+
+
+      // 4. QA approving
+      if (
+        isQA &&
+        parentTweetType === TWEET_DEV &&
+        isPositiveAnswer(msg.text)
+      ) {
+        const threadId = await data.tweetThreadById(
+          gameHashtag,
+          parentId
+        );
+        const isThreadFinished = await data.threadEndById.get(
+          gameHashtag,
+          threadId
+        );
+
+        if (isThreadFinished) {
+          return;
         }
 
-
-        // 4. QA approving
-        if (
-          qaSet.has(userId) &&
-          tweetTypeById[parentId] === TWEET_DEV &&
-          isPositiveAnswer(msg.text)
-        ) {
-          const threadId = tweetThreadById[parentId];
-
-          tweetThreadById[tweetId] = threadId;
-          tweetParentById[tweetId] = parentId;
-          tweetUsernameById[tweetId] = username;
-          tweetTimeById[tweetId] = timestamp;
-          tweetTypeById[tweetId] = TWEET_QA_APPROVED;
-
-          threadEndById[threadId] = tweetId;
-          threadStatusById[threadId] = DONE;
-
-          notifications.push({
+        await Promise.all([
+          data.indexTweet({
+            gameId: gameHashtag,
+            tweet: msg,
+            newThreadStatus: DONE,
+            tweetType: TWEET_QA_APPROVED,
+            threadId
+          }),
+          data.threadEndById.set(gameHashtag, threadId, tweetId),
+          data.notifications.push({
             type: NOTIFICATION_TASK_COMPLETED,
             threadId: threadId,
             lastTweetId: tweetId
-          });
+          })
+        ]);
 
-          console.log(
-            '[game]',
-            'job completed',
-            getTweetUrl(username, tweetId)
-          );
+        console.log(
+          '[game]',
+          'job completed',
+          getTweetUrl(username, tweetId)
+        );
 
+        return;
+      }
+
+
+      // 4. QA rejecting
+      if (
+        isQA &&
+        parentTweetType === TWEET_DEV &&
+        !isPositiveAnswer(msg.text)
+      ) {
+        const threadId = await data.tweetThreadById(
+          gameHashtag,
+          parentId
+        );
+        const isThreadFinished = await data.threadEndById.get(
+          gameHashtag,
+          threadId
+        );
+
+        if (isThreadFinished) {
           return;
         }
 
+        const devUsername = await data.tweetUsernameById.get(
+          gameHashtag,
+          parentId
+        );
 
-        // 4. QA rejecting
-        if (
-          qaSet.has(userId) &&
-          tweetTypeById[parentId] === TWEET_DEV &&
-          !isPositiveAnswer(msg.text)
-        ) {
-          const threadId = tweetThreadById[parentId];
-
-          tweetThreadById[tweetId] = threadId;
-          tweetParentById[tweetId] = parentId;
-          tweetUsernameById[tweetId] = username;
-          tweetTimeById[tweetId] = timestamp;
-          tweetTypeById[tweetId] = TWEET_QA_REJECTED;
-
-          if (threadEndById[threadId]) {
-            return;
-          }
-
-          threadStatusById[threadId] = WORK_CENTER_DEV;
-          notifications.push({
+        await Promise.all([
+          data.indexTweet({
+            gameId: gameHashtag,
+            tweet: msg,
+            newThreadStatus: WORK_CENTER_DEV,
+            tweetType: TWEET_QA_REJECTED,
+            threadId
+          }),
+          data.notifications.push({
             type: NOTIFICATION_FOR_DEV_REJECTED,
             tweetId: tweetId,
-            devUsername: tweetUsernameById[parentId]
-          });
+            devUsername
+          })
+        ]);
 
+        console.log(
+          '[game]',
+          'job rejected',
+          getTweetUrl(username, tweetId)
+        );
 
-          console.log(
-            '[game]',
-            'job rejected',
-            getTweetUrl(username, tweetId)
-          );
-
-          return;
-        }
-
-      });
+        return;
+      }
 
     });
+
+  });
 };
 
 
 // Reporting
-setInterval(() => {
+const report = () => {
+  startReporting()
+    .catch(e => {
+      console.error('Error in reporter', e);
+      process.exit(1);
+    });
+};
+
+const startReporting = async () => {
   let minSysLeadTime = Infinity;
   let maxSysLeadTime = Infinity;
   let avgSysLeadTime = Infinity;
@@ -499,14 +560,21 @@ setInterval(() => {
   };
 
 
-  for (let threadId of [...tweetThreads]) {
-    let startTime = tweetTimeById[threadId];
-    let threadEnd = threadEndById[threadId];
-    let endTime = threadEnd ? tweetTimeById[threadEnd] : undefined;
+  const gameHashtag = await data.currentGameHashtag.get();
+  const tweetThreads = await data.tweetThreads.list(gameHashtag);
+
+  for (let threadId of tweetThreads) {
+    let startTime = await data.tweetTimeById(gameHashtag, threadId);
+    let threadEnd = await data.threadEndById(gameHashtag, threadId);
+    let endTime;
+
+    if (threadEnd) {
+      endTime = await data.tweetTimeById.get(gameHashtag, threadEnd);
+    }
 
     if (endTime) {
       let leadTime = (endTime - startTime) / 1000;
-      let usernames = collectUsernames(threadEnd);
+      let usernames = await collectUsernames(gameHashtag, threadEnd);
       let teamId = usernames.join('-');
       let teamLeadTimes = leadTimesByTeamId[teamId] || [];
       leadTimes.push(leadTime);
@@ -518,22 +586,36 @@ setInterval(() => {
     }
 
     if (!endTime) {
+      const threadStatus = await data.threadStatusById.get(
+        gameHashtag,
+        threadId
+      );
       inventory += 1;
-      inventoryByWorkCenter[threadStatusById[threadId]] += 1;
+      inventoryByWorkCenter[threadStatus] += 1;
     }
   }
 
-  for (let [tweetId, parentId] of _.entries(tweetParentById)) {
-    const tweetType = tweetTypeById[tweetId];
+  const tweetsByParent = await data.tweetParentById.entries(gameHashtag);
+  for (let [tweetId, parentId] of tweetsByParent) {
+    const tweetType = await data.tweetTypeById.get(gameHashtag, tweetId);
     const workCenter = WORK_CENTER_BY_TWEET_TYPE[tweetType];
+    const [
+      tweetTime,
+      parentTime
+    ] = await Promise.all([
+      data.tweetTimeById.get(gameHashtag, tweetId),
+      data.tweetTimeById.get(gameHashtag, parentId)
+    ]);
+
     leadTimesByWorkCenter[workCenter].push(
-      (tweetTimeById[tweetId] - tweetTimeById[parentId]) / 1000
+      (tweetTime - parentTime) / 1000
     );
   }
 
 
+  const tweetsByType = await data.tweetTypeById.entries(gameHashtag);
   // number of deffects
-  for (let [tweetId, type] of _.entries(tweetTypeById)) {
+  for (let [tweetId, type] of tweetsByType) {
     if (type === TWEET_QA_REJECTED) {
       defects += 1;
     }
@@ -600,9 +682,10 @@ setInterval(() => {
     score.place = index + 1;
   });
 
+  const participantsNumber = await data.usernameByUserId.getSize();
   api.broadcast(JSON.stringify({
-    hashtag: gameHashTag,
-    participantsNumber: Object.keys(usernameByUserId).length,
+    hashtag: gameHashtag,
+    participantsNumber,
     tasksInProgressNumber: inventory,
     tasksDoneNumber: done,
     poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
@@ -619,38 +702,59 @@ setInterval(() => {
   // console.log('Inventory', inventory, 'Defects', defects);
   // console.log('Inventory by work center', inventoryByWorkCenter);
   // console.log('==============================\n');
-}, 5000);
 
-
-const collectUsernames = (lastTweetId) => {
-  let usernames = new Set();
-  usernames.add(tweetUsernameById[lastTweetId]);
-  let parentId = tweetParentById[lastTweetId];
-
-  while (parentId) {
-    let tweetId = parentId;
-    parentId = tweetParentById[tweetId];
-    usernames.add(tweetUsernameById[tweetId]);
-  }
-  return [...usernames];
+  setTimeout(report, 1000);
 };
 
 
+const collectUsernames = async (gameId, lastTweetId) => {
+  let usernames = new Set();
+
+  usernames.add(await data.tweetUsernameById.get(gameId, lastTweetId));
+  let parentId = await tweetParentById.get(gameId, lastTweetId);
+
+  while (parentId) {
+    let tweetId = parentId;
+    parentId = await tweetParentById.get(gameId, tweetId);
+    usernames.add(await tweetUsernameById.get(gameId, tweetId));
+  }
+
+  return [...usernames];
+};
+
+const notify = () => {
+  startNotifying()
+    .catch(e => {
+      console.error('Error in notifier', e);
+      process.exit(1);
+    });
+};
+
 // Notifications
-setInterval(() => {
-  while (notifications.length > 0) {
-    let notification = notifications.pop();
+const startNotifying = async () => {
+  const gameHashtag = await data.currentGameHashtag.get();
+  let notification = await data.notifications.pop();
+
+  while (notification) {
 
     if (notification.type === NOTIFICATION_TASK_COMPLETED) {
       const threadId = notification.threadId;
-      const usernames = collectUsernames(notification.lastTweetId);
-      const usernamesStr = usernames.map(u => `@${u}`).join(' ');
-      const qaUsername = tweetUsernameById[notification.lastTweetId];
       const lastTweetId = notification.lastTweetId;
-      const leadTime = Math.round((
-        tweetTimeById[lastTweetId] -
-        tweetTimeById[threadId]
-      ) / 1000);
+
+      const [
+        usernames,
+        qaUsername,
+        lastTweetTime,
+        firstTweetTime
+      ] = await Promise.all([
+        collectUsernames(gameHashtag, lastTweetId),
+        data.tweetUsernameById(gameHashtag, lastTweetId),
+        data.tweetTimeById.get(gameHashtag, lastTweetId),
+        data.tweetTimeById.get(gameHashtag, threadId)
+      ]);
+
+      const usernamesStr = usernames.map(u => `@${u}`).join(' ');
+      const leadTime = Math.round((lastTweetTime - firstTweetTime) / 1000);
 
       const text = (
         `${usernamesStr} congrats on your finished task 🙌  ` +
@@ -671,15 +775,28 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_PO) {
-      const poList = usersByCategory.po;
+      const tweetId = notification.tweetId;
+
+      const [
+        poListSize,
+        tweetThreadsSize,
+        customerUsername
+      ] = await Promise.all([
+        data.usersByCategory.getSize('po'),
+        data.tweetThreads.getSize(gameHashtag),
+        data.tweetUsernameById.get(gameHashtag, tweetId)
+      ]);
+
       const poIndex = (
-        tweetThreads.size % poList.length
+        tweetThreadsSize % poListSize
       );
 
-      const poId = poList[poIndex];
-      const poUsername = usernameByUserId[poId];
-      const tweetId = notification.tweetId;
-      const customerUsername = tweetUsernameById[tweetId];
+      const poId = await data.usersByCategory.getUserIdByIndex(
+        'po',
+        poIndex
+      );
+      const poUsername = await data.usernameByUserId.get(poId);
+
       const text = (
         `@${poUsername} Check out this task from a customer. ` +
         `Reply to the tweet referenced below with a gif-spec: ` +
@@ -697,15 +814,26 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
-      const devList = usersByCategory.dev;
-      const devIndex = (
-        tweetThreads.size % devList.length
-      );
-
-      const devId = devList[devIndex];
-      const devUsername = usernameByUserId[devId];
       const tweetId = notification.tweetId;
-      const poUsername = tweetUsernameById[tweetId];
+
+      const [
+        devListSize,
+        tweetThreadsSize,
+        poUsername
+      ] = await Promise.all([
+        data.usersByCategory.getSize('dev'),
+        data.tweetThreads.getSize(gameHashtag),
+        data.tweetUsernameById.get(gameHashtag, tweetId)
+      ]);
+
+      const devIndex = tweetThreadsSize % devListSize;
+
+      const devId = await data.usersByCategory.getUserIdByIndex(
+        'dev',
+        devIndex
+      );
+      const devUsername = await data.usernameByUserId.get(devId);
+
       const text = (
         `@${devUsername} Check out this spec from a PO. ` +
         `Reply to the tweet referenced below with ` +
@@ -726,7 +854,11 @@ setInterval(() => {
     if (notification.type === NOTIFICATION_FOR_DEV_REJECTED) {
       const devUsername = notification.devUsername;
       const tweetId = notification.tweetId;
-      const qaUsername = tweetUsernameById[tweetId];
+      const qaUsername = await data.tweetUsernameById.get(
+        gameHashtag,
+        tweetId
+      );
+
       const text = (
         `@${devUsername} Your implementation was rejected by QA. ` +
         `Reply to the tweet referenced below with ` +
@@ -745,15 +877,25 @@ setInterval(() => {
 
 
     if (notification.type === NOTIFICATION_FOR_QA) {
-      const qaList = usersByCategory.qa;
-      const qaIndex = (
-        tweetThreads.size % qaList.length
-      );
-
-      const qaId = qaList[qaIndex];
-      const qaUsername = usernameByUserId[qaId];
       const tweetId = notification.tweetId;
-      const devUsername = tweetUsernameById[tweetId];
+
+      const [
+        qaListSize,
+        tweetThreadsSize,
+        devUsername
+      ] = await Promise.all([
+        data.usersByCategory.getSize('qa'),
+        data.tweetThreads.getSize(gameHashtag),
+        data.tweetUsernameById.get(gameHashtag, tweetId)
+      ]);
+
+      const qaIndex = tweetThreadsSize % qaListSize;
+      const qaId = await data.usersByCategory.getUserIdByIndex(
+        'qa',
+        qaIndex
+      );
+      const qaUsername = await data.usernameByUserId.get(qaId);
+
       const text = (
         `@${qaUsername} Check out this implementation from a developer. ` +
         `Reply to the tweet referenced below with ` +
@@ -808,10 +950,16 @@ setInterval(() => {
           console.error('Can\'t send notification', text, err);
         });
     }
+
+
+    notification = await data.notifications.pop();
   }
-}, 1000);
+
+  setTimeout(notify, 1000);
+};
 
 
-// TODO: more variations of texts
+watch();
+notify();
+report();
 
-startWatching();

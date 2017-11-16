@@ -7,7 +7,14 @@ function createWebSocket(cb) {
   let retry = true;
   let retryIntervalId = 0;
   let listener = (msg) => {
-    cb(JSON.parse(msg.data));
+    const data = JSON.parse(msg.data);
+    console.log(
+      '[apiClient]',
+      'Received',
+      data
+    );
+
+    cb(data);
   };
 
 
