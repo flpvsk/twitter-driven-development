@@ -1,6 +1,42 @@
 import React, { Component } from 'react';
 import './App.css';
 
+const HOUR = 60 * 60;
+const MIN = 60;
+
+const secondsToString = (s) => {
+  s = Math.round(s);
+
+  let hours;
+  let minutes;
+
+  if (s > HOUR) {
+    hours = Math.floor(s / HOUR);
+    s = s % HOUR;
+  }
+
+  if (s > MIN) {
+    minutes = Math.floor(s / MIN);
+    s = s % MIN;
+  }
+
+  let result = '';
+
+  if (s) {
+    result = `${s}s`;
+  }
+
+  if (minutes) {
+    result = `${minutes}m ` + result;
+  }
+
+  if (hours) {
+    result = `${hours}h ` + result;
+  }
+
+  return result;
+};
+
 class MainMetricBlock extends Component {
   render() {
     return (
@@ -26,7 +62,7 @@ class WorkInProgressMetricBlock extends Component {
     let description;
 
     if (this.props.leadTime) {
-      description = `${Math.round(this.props.leadTime)}s / tweet`;
+      description = `${secondsToString(this.props.leadTime)} / tweet`;
     }
 
     return (
@@ -171,13 +207,13 @@ class App extends Component {
         <section className='Section'>
           <WorkInProgressMetricBlock
             header={'min'}
-            value={`${systemLeadTime.min}s`} />
+            value={secondsToString(systemLeadTime.min)} />
           <WorkInProgressMetricBlock
             header={'avg'}
-            value={`${systemLeadTime.avg}s`} />
+            value={secondsToString(systemLeadTime.avg)} />
           <WorkInProgressMetricBlock
             header={'max'}
-            value={`${systemLeadTime.max}s`} />
+            value={secondsToString(systemLeadTime.max)} />
         </section>
       );
     }

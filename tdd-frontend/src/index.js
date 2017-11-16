@@ -36,13 +36,13 @@ const TEST_STATE = {
   poInProgressNumber: 3,
   poLeadTime: 10,
   devInProgressNumber: 5,
-  devLeadTime: 30,
+  devLeadTime: 300,
   qaInProgressNumber: 2,
   qaLeadTime: 10,
   systemLeadTime: {
-    min: 10,
-    max: 105,
-    avg: 400
+    min: 100,
+    max: 1052,
+    avg: 4000
   },
   scoreboardData: [
     {
