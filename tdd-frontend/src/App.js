@@ -104,7 +104,8 @@ class ScoreCard extends Component {
       return acc;
     }, []);
 
-    let variance = Math.round(varianceLeadTime * 100) / 100;
+    const variance = Math.round(varianceLeadTime * 100) / 100;
+    const meanStr = secondsToString(meanLeadTime);
     return (
       <div className='ScoreCard'>
         <div className='ScoreCard__Place'>
@@ -123,12 +124,12 @@ class ScoreCard extends Component {
               </div>
             </div>
             <div className='ScoreCard__Metric'
-                title={`Mean lead time: ${Math.round(meanLeadTime)}`}>
+                title={`Mean lead time: ${meanStr}`}>
               <div className='ScoreCard__MetricName'>
                 µ<sub className='_supOrSub'>lead t</sub>
               </div>
               <div className='ScoreCard__MetricValue'>
-                {Math.round(meanLeadTime)}s
+                {meanStr}
               </div>
             </div>
             <div className='ScoreCard__Metric'
