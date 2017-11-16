@@ -1,4 +1,6 @@
 require('dotenv').config();
+const fs = require('fs-extra');
+const path = require('path');
 const _ = require('lodash');
 const util = require('util');
 const Twitter = require('twitter');
@@ -12,6 +14,15 @@ const isTweet = _.conforms({
   text: _.isString,
   user: _.isObject
 });
+
+const BACKUP_PATH = (
+  process.env.BACKUP_PATH ||
+  `${process.env.HOME}/tmp/tdd-data.json`
+);
+const BACKUP_INTERVAL = 10000;
+const REPORTING_INTERVAL = 3000;
+const NOTIFICATIONS_INTERVAL = 5000;
+const WATCHER_RESTART_INTERVAL = 5000;
 
 const WORK_CENTER_PO = 'po';
 const WORK_CENTER_DEV = 'dev';
@@ -124,15 +135,15 @@ const client = new Twitter({
 });
 
 // State (all the indexes required)
-const tweetThreads = new Set();
-const tweetTimeById = {};
-const tweetParentById = {};
-const tweetThreadById = {};
-const threadEndById = {};
-const tweetTypeById = {};
-const threadStatusById = {};
-const tweetUsernameById = {};
-const notifications = [];
+let tweetThreads = new Set();
+let tweetTimeById = {};
+let tweetParentById = {};
+let tweetThreadById = {};
+let threadEndById = {};
+let tweetTypeById = {};
+let threadStatusById = {};
+let tweetUsernameById = {};
+let notifications = [];
 
 // State (users)
 
@@ -166,9 +177,10 @@ let usernameByUserId = {
 // State (game)
 
 let globalStream;
-let gameHashTag = undefined;
-// gameHashTag = 'test';
-const isGameHashTag = (htObj) => htObj.text === gameHashTag;
+let gameHashtag = undefined;
+let restartWatcher = false;
+// gameHashtag = 'test';
+const isGameHashTag = (htObj) => htObj.text === gameHashtag;
 
 
 const startWatching = () => {
@@ -197,7 +209,7 @@ const startWatching = () => {
 
       stream.on('error', (err) => {
         console.error(err);
-        process.exit(1);
+        writeBackup().then(() => process.exit(1));
       });
 
       stream.on('data', (msg) => {
@@ -228,19 +240,31 @@ const startWatching = () => {
           msg.text.toLowerCase().indexOf('start') > -1 &&
           msg.entities.hashtags &&
           msg.entities.hashtags.length > 0 &&
-          msg.entities.hashtags[0].text !== gameHashTag
+          msg.entities.hashtags[0].text !== gameHashtag
         ) {
-          gameHashTag = msg.entities.hashtags[0].text;
+          gameHashtag = msg.entities.hashtags[0].text;
 
-          console.log('Starting a game with', gameHashTag);
-          startWatching();
+          console.log('Starting a game with', gameHashtag);
+          tweetThreads = new Set();
+          tweetTimeById = {};
+          tweetParentById = {};
+          tweetThreadById = {};
+          threadEndById = {};
+          tweetTypeById = {}
+          threadStatusById = {};
+          tweetUsernameById = {};
+          notifications = [];
+
+          restartWatcher = true;
           return;
         }
 
         // Adding user
         if (
           !usernameByUserId[msg.user.id_str] &&
-          msg.text.toLowerCase().indexOf('join') > -1
+          msg.text.toLowerCase().indexOf('join') > -1 &&
+          msg.text.toLowerCase().indexOf(`@${SELF_USERNAME}`) > -1 &&
+          !msg.in_reply_to_status_id
         ) {
           const userId = msg.user.id_str;
 
@@ -253,7 +277,10 @@ const startWatching = () => {
             USER_CATEGORIES.length
           );
 
-          userCategory = userCategory || USER_CATEGORIES[userCategoryIndex];
+          userCategory = (
+            userCategory ||
+            USER_CATEGORIES[userCategoryIndex]
+          );
 
           const username = msg.user.screen_name;
 
@@ -264,9 +291,11 @@ const startWatching = () => {
             type: NOTIFICATION_USER_JOINED,
             userId,
             username,
-            category: userCategory
+            category: userCategory,
+            tweetId: msg.id_str
           });
-          startWatching();
+
+          restartWatcher = true;
           console.log('user joined', userId, userCategory);
           return;
         }
@@ -275,7 +304,9 @@ const startWatching = () => {
         // Removing user
         if (
           usernameByUserId[msg.user.id_str] &&
-          msg.text.toLowerCase().indexOf('leave') > -1
+          msg.text.toLowerCase().indexOf('leave') > -1 &&
+          msg.text.toLowerCase().indexOf(`@${SELF_USERNAME}`) > -1 &&
+          !msg.in_reply_to_status_id
         ) {
           const userId = msg.user.id_str;
           const category = categoryByUserId[userId];
@@ -291,9 +322,11 @@ const startWatching = () => {
             type: NOTIFICATION_USER_LEFT,
             userId,
             username,
-            category
+            category,
+            tweetId: msg.id_str
           });
 
+          restartWatcher = true;
           console.log('user left', userId, category);
           return;
         }
@@ -474,12 +507,8 @@ const startWatching = () => {
     });
 };
 
-
 // Reporting
-setInterval(() => {
-  let minSysLeadTime = Infinity;
-  let maxSysLeadTime = Infinity;
-  let avgSysLeadTime = Infinity;
+const report = () => {
   let leadTimes = [];
   let leadTimesByWorkCenter = {
     [WORK_CENTER_PO]: [],
@@ -541,11 +570,21 @@ setInterval(() => {
 
 
   // Aggregating values
-  const leadTimeReduced = {
+  let leadTimeReduced = {
     min: _.min(leadTimes),
     max: _.max(leadTimes),
     avg: _.mean(leadTimes) || undefined
   };
+
+  if (leadTimeReduced.min !== undefined) {
+    leadTimeReduced.min = Math.round(leadTimeReduced.min);
+  }
+  if (leadTimeReduced.max !== undefined) {
+    leadTimeReduced.max = Math.round(leadTimeReduced.max);
+  }
+  if (leadTimeReduced.avg !== undefined) {
+    leadTimeReduced.avg = Math.round(leadTimeReduced.avg);
+  }
 
 
   const leadTimesByWorkCenterReduced = {
@@ -601,25 +640,30 @@ setInterval(() => {
   });
 
   api.broadcast(JSON.stringify({
-    hashtag: gameHashTag,
+    hashtag: gameHashtag,
     participantsNumber: Object.keys(usernameByUserId).length,
     tasksInProgressNumber: inventory,
     tasksDoneNumber: done,
     poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
     devInProgressNumber: inventoryByWorkCenter[WORK_CENTER_DEV],
     qaInProgressNumber: inventoryByWorkCenter[WORK_CENTER_QA],
-    poThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_PO].avg,
-    devThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
-    qaThroughput: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
-    scoreboardData: scores
+    poLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_PO].avg,
+    devLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
+    qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
+    scoreboardData: scores,
+    systemLeadTime: leadTimeReduced
   }));
+
+  setTimeout(report, REPORTING_INTERVAL);
 
   // console.log('System lead times', leadTimeReduced);
   // console.log('Work center lead times', leadTimesByWorkCenterReduced);
   // console.log('Inventory', inventory, 'Defects', defects);
   // console.log('Inventory by work center', inventoryByWorkCenter);
   // console.log('==============================\n');
-}, 5000);
+};
+
+const startReporting = report;
 
 
 const collectUsernames = (lastTweetId) => {
@@ -635,9 +679,10 @@ const collectUsernames = (lastTweetId) => {
   return [...usernames];
 };
 
-
 // Notifications
-setInterval(() => {
+const notify = async () => {
+  let retryNotifications = [];
+
   while (notifications.length > 0) {
     let notification = notifications.pop();
 
@@ -660,13 +705,11 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {
-          status: text
-        })
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
-        });
+      try {
+        await client.post('statuses/update', {status: text})
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
 
 
@@ -677,6 +720,12 @@ setInterval(() => {
       );
 
       const poId = poList[poIndex];
+
+      if (!poId) {
+        retryNotifications.push(notification);
+        continue;
+      }
+
       const poUsername = usernameByUserId[poId];
       const tweetId = notification.tweetId;
       const customerUsername = tweetUsernameById[tweetId];
@@ -688,11 +737,11 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
-        });
+      try {
+        await client.post('statuses/update', {status: text});
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
 
 
@@ -703,6 +752,12 @@ setInterval(() => {
       );
 
       const devId = devList[devIndex];
+
+      if (!devId) {
+        retryNotifications.push(notification);
+        continue;
+      }
+
       const devUsername = usernameByUserId[devId];
       const tweetId = notification.tweetId;
       const poUsername = tweetUsernameById[tweetId];
@@ -715,11 +770,11 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
-        });
+      try {
+        await client.post('statuses/update', {status: text});
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
 
 
@@ -736,11 +791,11 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
-        });
+      try {
+        await client.post('statuses/update', {status: text});
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
 
 
@@ -751,6 +806,12 @@ setInterval(() => {
       );
 
       const qaId = qaList[qaIndex];
+
+      if (!qaId) {
+        retryNotifications.push(notification);
+        continue;
+      }
+
       const qaUsername = usernameByUserId[qaId];
       const tweetId = notification.tweetId;
       const devUsername = tweetUsernameById[tweetId];
@@ -763,16 +824,12 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
-        });
+      try {
+        await client.post('statuses/update', {status: text});
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
-
-
-    NOTIFICATION_USER_JOINED;
-    NOTIFICATION_USER_LEFT;
 
     if (notification.type === NOTIFICATION_USER_JOINED) {
       const text = (
@@ -786,11 +843,14 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
+      try {
+        await client.post('statuses/update', {
+          status: text,
+          in_reply_to_status_id: notification.tweetId
         });
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
 
     if (notification.type === NOTIFICATION_USER_LEFT) {
@@ -802,16 +862,109 @@ setInterval(() => {
 
       console.log('sending', text);
 
-      client
-        .post('statuses/update', {status: text})
-        .catch((err) => {
-          console.error('Can\'t send notification', text, err);
+      try {
+        await client.post('statuses/update', {
+          status: text,
+          in_reply_to_status_id: notification.tweetId
         });
+      } catch (err) {
+        console.error('Can\'t send notification', text, err);
+      }
     }
   }
-}, 1000);
+
+  notifications = retryNotifications;
+
+  setTimeout(notify, NOTIFICATIONS_INTERVAL);
+};
+
+const startNotifying = notify;
 
 
-// TODO: more variations of texts
 
-startWatching();
+setTimeout(writeBackup, BACKUP_INTERVAL);
+
+async function writeBackup() {
+  const dataPath = BACKUP_PATH;
+  const dirPath = path.dirname(dataPath);
+
+  try {
+    console.log('[backup]', 'saving backup to', dataPath);
+    await fs.mkdirs(dirPath);
+    await fs.access(dirPath, fs.constants.W_OK | fs.constants.X_OK)
+    await fs.writeJson(dataPath, {
+      tweetThreads: [...tweetThreads],
+      tweetTimeById,
+      tweetParentById,
+      tweetThreadById,
+      threadEndById,
+      tweetTypeById,
+      threadStatusById,
+      tweetUsernameById,
+      notifications,
+      usersByCategory,
+      categoryByUserId,
+      usernameByUserId,
+      gameHashtag
+    });
+    console.log('[backup]', 'backup done');
+  } catch (e) {
+    console.warn('[backup]', `can't write backup at:`, dataPath, e);
+  } finally {
+    setTimeout(writeBackup, BACKUP_INTERVAL);
+  }
+};
+
+
+async function readBackupIntoMemory() {
+  const dataPath = BACKUP_PATH;
+  try {
+    await fs.access(dataPath, fs.constants.R_OK)
+  } catch (e) {
+    console.warn('[backup]', `can't read backup at:`, dataPath);
+    return;
+  }
+
+  let data = await fs.readJson(dataPath);
+
+  tweetThreads = new Set(data.tweetThreads);
+  tweetTimeById = data.tweetTimeById;
+  tweetParentById = data.tweetParentById;
+  tweetThreadById = data.tweetThreadById;
+  threadEndById = data.threadEndById;
+  tweetTypeById = data.tweetTypeById;
+  threadStatusById = data.threadStatusById;
+  tweetUsernameById = data.tweetUsernameById;
+  notifications = data.notifications;
+  usersByCategory = data.usersByCategory;
+  categoryByUserId = data.categoryByUserId;
+  usernameByUserId = data.usernameByUserId;
+  gameHashtag = data.gameHashtag;
+
+  console.log('[backup]', 'restored state from backup');
+  return;
+};
+
+
+const doRestart = () => {
+  if (restartWatcher) {
+    console.log('[doRestart]', 'restarting watcher');
+    restartWatcher = false;
+    startWatching();
+  }
+
+  setTimeout(doRestart, WATCHER_RESTART_INTERVAL);
+};
+
+setTimeout(doRestart, WATCHER_RESTART_INTERVAL);
+
+readBackupIntoMemory()
+  .then(() => {
+    startWatching();
+    startReporting();
+    startNotifying();
+  })
+  .catch((e) => {
+    console.error('[main] something went wrong', e);
+    process.exit(1);
+  });

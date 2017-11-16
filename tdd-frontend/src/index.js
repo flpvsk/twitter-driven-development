@@ -13,11 +13,16 @@ const EMPTY_STATE = {
   tasksInProgressNumber: 0,
   tasksDoneNumber: 0,
   poInProgressNumber: 0,
-  poThroughput: '',
+  poLeadTime: undefined,
   devInProgressNumber: 0,
-  devThroughput: '',
+  devLeadTime: undefined,
   qaInProgressNumber: 0,
-  qaThroughput: '',
+  qaLeadTime: undefined,
+  systemLeadTime: {
+    min: undefined,
+    max: undefined,
+    avg: undefined
+  },
   scoreboardData: []
 };
 
@@ -29,11 +34,16 @@ const TEST_STATE = {
   tasksInProgressNumber: 10,
   tasksDoneNumber: 3,
   poInProgressNumber: 3,
-  poThroughput: 10,
+  poLeadTime: 10,
   devInProgressNumber: 5,
-  devThroughput: 30,
+  devLeadTime: 30,
   qaInProgressNumber: 2,
-  qaThroughput: 10,
+  qaLeadTime: 10,
+  systemLeadTime: {
+    min: 10,
+    max: 105,
+    avg: 400
+  },
   scoreboardData: [
     {
       place: 1,

@@ -25,6 +25,7 @@
   "dependencies": {
     "dotenv": "^4.0.0",
     "emoji-regex": "^6.5.1",
+    "fs-extra": "^4.0.2",
     "lodash": "^4.17.4",
     "redis": "^2.8.0",
     "twitter": "^1.7.1",

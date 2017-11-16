@@ -25,8 +25,8 @@ class WorkInProgressMetricBlock extends Component {
   render() {
     let description;
 
-    if (this.props.throughput) {
-      description = `${Math.round(this.props.throughput)}s / tweet`;
+    if (this.props.leadTime) {
+      description = `${Math.round(this.props.leadTime)}s / tweet`;
     }
 
     return (
@@ -68,6 +68,7 @@ class ScoreCard extends Component {
       return acc;
     }, []);
 
+    let variance = Math.round(varianceLeadTime * 100) / 100;
     return (
       <div className='ScoreCard'>
         <div className='ScoreCard__Place'>
@@ -76,7 +77,8 @@ class ScoreCard extends Component {
         <div className='ScoreCard__Body'>
           <div className='ScoreCard__Users'>{userLinks}</div>
           <div className='ScoreCard__Metrics'>
-            <div className='ScoreCard__Metric'>
+            <div className='ScoreCard__Metric'
+                title={`Number of jobs completed: ${tasksDoneNumber}`}>
               <div className='ScoreCard__MetricName'>
                 𝘕<sub className='_supOrSub'>jobs</sub>
               </div>
@@ -84,7 +86,8 @@ class ScoreCard extends Component {
                 {tasksDoneNumber}
               </div>
             </div>
-            <div className='ScoreCard__Metric'>
+            <div className='ScoreCard__Metric'
+                title={`Mean lead time: ${Math.round(meanLeadTime)}`}>
               <div className='ScoreCard__MetricName'>
                 µ<sub className='_supOrSub'>lead t</sub>
               </div>
@@ -92,7 +95,8 @@ class ScoreCard extends Component {
                 {Math.round(meanLeadTime)}s
               </div>
             </div>
-            <div className='ScoreCard__Metric'>
+            <div className='ScoreCard__Metric'
+                title={`Lead time variance: ${variance}`}>
               <div className='ScoreCard__MetricName'>
                 {
                   '𝜎'
@@ -103,7 +107,7 @@ class ScoreCard extends Component {
                 }</sub>
               </div>
               <div className='ScoreCard__MetricValue'>
-                {Math.round(varianceLeadTime * 100) / 100}
+                {variance}
               </div>
             </div>
           </div>
@@ -126,15 +130,17 @@ class App extends Component {
       tasksInProgressNumber,
       tasksDoneNumber,
       poInProgressNumber,
-      poThroughput,
+      poLeadTime,
       devInProgressNumber,
-      devThroughput,
+      devLeadTime,
       qaInProgressNumber,
-      qaThroughput,
-      scoreboardData
+      qaLeadTime,
+      scoreboardData,
+      systemLeadTime
     } = this.props;
 
     let scoreboardRendered;
+    let systemLeadTimeRendered;
 
     if (!scoreboardData.length) {
       scoreboardRendered = (
@@ -148,6 +154,32 @@ class App extends Component {
       scoreboardRendered = scoreboardData.map((data) => {
         return <ScoreCard key={data.place} {...data} />;
       });
+    }
+
+    if (
+      !systemLeadTime.min ||
+      !systemLeadTime.max ||
+      !systemLeadTime.avg
+    ) {
+      systemLeadTimeRendered = (
+        <div className='Info'>
+          {`There are no finished jobs yet…`}
+        </div>
+      );
+    } else {
+      systemLeadTimeRendered = (
+        <section className='Section'>
+          <WorkInProgressMetricBlock
+            header={'min'}
+            value={`${systemLeadTime.min}s`} />
+          <WorkInProgressMetricBlock
+            header={'avg'}
+            value={`${systemLeadTime.avg}s`} />
+          <WorkInProgressMetricBlock
+            header={'max'}
+            value={`${systemLeadTime.max}s`} />
+        </section>
+      );
     }
 
     let hashtagStr;
@@ -192,20 +224,24 @@ class App extends Component {
           <WorkInProgressMetricBlock
             header={'PO'}
             value={poInProgressNumber}
-            throughput={poThroughput} />
+            leadTime={poLeadTime} />
           <WorkInProgressMetricBlock
             header={'DEV'}
             value={devInProgressNumber}
-            throughput={devThroughput} />
+            leadTime={devLeadTime} />
           <WorkInProgressMetricBlock
             header={'QA'}
             value={qaInProgressNumber}
-            throughput={qaThroughput} />
+            leadTime={qaLeadTime} />
         </section>
+        <header id='system' className='Header _topBorder'>
+          {'System\'s lead time'}
+        </header>
+        {systemLeadTimeRendered}
         <header id='scoreboard' className='Header _topBorder'>
           {'Scoreboard'}
-          {scoreboardRendered}
         </header>
+        {scoreboardRendered}
       </div>
     );
   }
