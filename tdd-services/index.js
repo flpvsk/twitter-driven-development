@@ -768,7 +768,7 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_PO) {
       const poList = usersByCategory.po;
       const poIndex = (
-        tweetThreads.size % poList.length
+        Math.round(Math.random() * 1000) % poList.length
       );
 
       const poId = poList[poIndex];
@@ -805,7 +805,7 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
       const devList = usersByCategory.dev;
       const devIndex = (
-        tweetThreads.size % devList.length
+        Math.round(Math.random() * 1000) % devList.length
       );
 
       const devId = devList[devIndex];
@@ -866,7 +866,7 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_QA) {
       const qaList = usersByCategory.qa;
       const qaIndex = (
-        tweetThreads.size % qaList.length
+        Math.round(Math.random() * 1000) % qaList.length
       );
 
       const qaId = qaList[qaIndex];
