@@ -23,11 +23,12 @@ const EMPTY_STATE = {
     max: undefined,
     avg: undefined
   },
-  scoreboardData: []
-};
+  scoreboardData: [],
+  allThreads: []
 
-/*
-const TEST_STATE = {
+  // TEST STATE
+
+  /*
   hashtag: 'kanbanbanan',
   isLoading: false,
   participantsNumber: 3,
@@ -81,9 +82,38 @@ const TEST_STATE = {
       meanLeadTime: 103.5,
       varianceLeadTime: 0
     }
+  ],
+
+  allThreads: [
+    {
+      url: 'https://twitter.com/flpvsk/status/931879168052224000',
+      startTime: 1511015026785,
+      endTime: 1511015039628,
+      leadTime: 12,
+      defects: 0,
+      text: 'grass floor in the server room #overtime'
+    },
+    {
+      url: 'https://twitter.com/flpvsk/status/931879168052224000',
+      startTime: 1511015026785,
+      endTime: 1511015039628,
+      leadTime: 12,
+      defects: 0,
+      text: 'grass floor in the server room #overtime'
+    },
+    {
+      url: 'https://twitter.com/flpvsk/status/931879168052224000',
+      startTime: 1511015026785,
+      endTime: 1511015039628,
+      leadTime: 12,
+      defects: 0,
+      text: 'grass floor in the server room #overtime'
+    }
   ]
+
+  */
 };
-*/
+
 
 class AppConnected extends Component {
   constructor() {

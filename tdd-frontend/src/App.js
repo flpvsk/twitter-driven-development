@@ -173,11 +173,13 @@ class App extends Component {
       qaInProgressNumber,
       qaLeadTime,
       scoreboardData,
-      systemLeadTime
+      systemLeadTime,
+      allThreads
     } = this.props;
 
     let scoreboardRendered;
     let systemLeadTimeRendered;
+    let jobsRendered;
 
     if (!scoreboardData.length) {
       scoreboardRendered = (
@@ -192,6 +194,64 @@ class App extends Component {
         return <ScoreCard key={data.place} {...data} />;
       });
     }
+
+
+    if (!allThreads.length) {
+      jobsRendered = (
+        <div className='Info'>
+          {`There are no started jobs yet…`}
+        </div>
+      );
+    }
+
+    if (allThreads.length){
+      let jobRows = allThreads.map((thread, i) => {
+        const startTime = new Date(thread.startTime);
+        const startTimeStr = (
+          `${startTime.getHours()}:${startTime.getMinutes()}`
+        );
+
+        let endTimeStr;
+        if (thread.endTime) {
+          let endTime = new Date(thread.endTime);
+          endTimeStr = (
+            `${endTime.getHours()}:${endTime.getMinutes()}`
+          );
+        }
+
+        let id = (
+          <a href={thread.url}>{i + 1}</a>
+        );
+
+        return (
+          <tr key={i}>
+            <td className='JobsTable__Id'>{id}</td>
+            <td className='JobsTable__Text'>{thread.text}</td>
+            <td className='JobsTable__Time'>{startTimeStr}</td>
+            <td className='JobsTable__Time'>{endTimeStr}</td>
+            <td className='JobsTable__Defects'>{thread.defects}</td>
+          </tr>
+        );
+      });
+
+      jobsRendered = (
+        <table className='JobsTable'>
+          <thead>
+            <th className='JobsTable__Header'></th>
+            <th className='JobsTable__Header JobsTable__TextHeader'>
+              Job
+            </th>
+            <th className='JobsTable__Header'>Start</th>
+            <th className='JobsTable__Header'>End</th>
+            <th className='JobsTable__Header'>Defects</th>
+          </thead>
+          <tbody>
+            {jobRows}
+          </tbody>
+        </table>
+      );
+    }
+
 
     if (
       !systemLeadTime.min ||
@@ -279,6 +339,9 @@ class App extends Component {
           {'Scoreboard'}
         </header>
         {scoreboardRendered}
+        <header id='jobs' className='Header _topBorder _topMargin'>
+        </header>
+        {jobsRendered}
       </div>
     );
   }

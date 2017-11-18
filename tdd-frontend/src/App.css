@@ -20,7 +20,7 @@ body {
 }
 
 * {
-  border-sizing: border-box;
+  box-sizing: border-box;
 }
 
 .Footer {
@@ -71,6 +71,11 @@ body {
 ._topBorder {
   border-top: 3px solid rgba(255, 255, 255, 0.5);
   padding-top: 1.85em;
+}
+
+
+._topMargin {
+  margin-top: 1.85em;
 }
 
 .MetricBlock {
@@ -189,4 +194,41 @@ body {
   font-style: italic;
   font-weight: 300;
   letter-spacing: 0.03em;
+}
+
+
+.JobsTable {
+  font-weight: 300;
+  border: none;
+  width: 100%;
+}
+
+.JobsTable tr {
+  font-size: 0.7em;
+  text-align: center;
+}
+
+.JobsTable__Header {
+  font-weight: 300;
+  font-size: 0.7em;
+  padding-bottom: 1em;
+}
+
+.JobsTable__TextHeader {
+  text-align: left;
+}
+
+.JobsTable__Id {
+  padding-top: 0.5em;
+  padding-left: 0;
+  min-width: 2em;
+  text-align: left;
+}
+
+.JobsTable__Time {
+  text-size: 0.7em;
+}
+
+.JobsTable__Text {
+  text-align: left;
 }
