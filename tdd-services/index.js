@@ -914,8 +914,7 @@ const notify = async () => {
 
       try {
         await client.post('statuses/update', {
-          status: text,
-          in_reply_to_status_id: notification.tweetId
+          status: text
         });
       } catch (err) {
         console.error('Can\'t send notification', text, err);
@@ -937,8 +936,7 @@ const notify = async () => {
 
       try {
         await client.post('statuses/update', {
-          status: text,
-          in_reply_to_status_id: notification.tweetId
+          status: text
         });
       } catch (err) {
         console.error('Can\'t send notification', text, err);
