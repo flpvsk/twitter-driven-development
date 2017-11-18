@@ -52,38 +52,47 @@ const NOTIFICATION_USER_LEFT = 'NOTIFICATION_USER_LEFT';
 
 const NOTIFICATION_TEXT_BY_TYPE = {
   [NOTIFICATION_TASK_COMPLETED]: [
-    `congrats on your finished task 🙌  `,
-    `woohoo! this task is done! `,
-    `done and done 🔥 `,
-    `task – ✅ you – 🤘 `,
+    `congrats on your finished task 🙌  Your lead time:`,
+    `woohoo! this task is done! Lead time:`,
+    `done and done 🔥  Your time:`,
+    `task – ✅ you – 🤘  Lead time –`,
   ],
   [NOTIFICATION_FOR_PO]: [
     (
       `Check out this task from a customer. ` +
-      `Reply to the tweet referenced below with a gif-spec: `
+      `Reply to the tweet referenced below with a gif-spec:`
     ),
     (
       `Incoming req from a customer. ` +
       `Do that thing you do so well – ` +
-      `gif-reply to the attached tweet: `
+      `gif-reply to the attached tweet:`
     ),
     (
       `Here's a request from a customer. ` +
-      `Reply with a gif to their tweet: `
+      `Reply with a gif to their tweet:`
     )
   ],
   [NOTIFICATION_FOR_DEV_NEW]: [
     (
       `Check out this spec from a PO. ` +
       `Reply to the tweet referenced below with ` +
-      `your emoji-implementation: `
+      `your emoji-implementation:`
+    ),
+    (
+      `Do that emoji-magic you engineers do and make it work! ` +
+      `By when? YESTERDAY, of course! ` +
+      `Reply to this tweet:`
     )
   ],
   [NOTIFICATION_FOR_DEV_REJECTED]: [
     (
       `Your implementation was rejected by QA. ` +
       `Reply to the tweet referenced below with ` +
-      `the new emoji-implementation: `
+      `the new emoji-implementation:`
+    ),
+    (
+      `Bad news, it doesn't work according to spec. ` +
+      `Fix it and reply to the tweet below:`
     )
   ],
   [NOTIFICATION_FOR_QA]: [
@@ -91,6 +100,22 @@ const NOTIFICATION_TEXT_BY_TYPE = {
       `Check out this implementation from a developer. ` +
       `Reply to the tweet referenced below with ` +
       `"approved" or "rejected"`
+    ),
+    (
+      `Hey, do you "approve" of this? Or will you "reject"? ` +
+      `It's all up to you now. Reply to this tweet:`
+    )
+  ],
+  [NOTIFICATION_USER_JOINED]: [
+    (
+      `thanks for joining our disruptive startup!\n\n` +
+      `Your role:`
+    ),
+    (
+      `looking forward to working with you! It's hard to find ` +
+      `professionals like youself that work only for shares ` +
+      `and no salary..\n\n` +
+      `You joined as:`
     )
   ]
 };
@@ -679,6 +704,13 @@ const collectUsernames = (lastTweetId) => {
   return [...usernames];
 };
 
+
+const getNotificationText = (tweetIdStr, type) => {
+  const texts = NOTIFICATION_TEXT_BY_TYPE[type];
+  const textIndex =  Number(tweetIdStr) % texts.length;
+  return texts[textIndex];
+}
+
 // Notifications
 const notify = async () => {
   let retryNotifications = [];
@@ -697,9 +729,13 @@ const notify = async () => {
         tweetTimeById[threadId]
       ) / 1000);
 
+      const body = getNotificationText(
+        lastTweetId,
+        NOTIFICATION_TASK_COMPLETED
+      );
+
       const text = (
-        `${usernamesStr} congrats on your finished task 🙌  ` +
-        `Your time: ${leadTime}s. ` +
+        `${usernamesStr} ${body} ${leadTime}s ` +
         getTweetUrl(qaUsername, lastTweetId)
       );
 
@@ -729,9 +765,14 @@ const notify = async () => {
       const poUsername = usernameByUserId[poId];
       const tweetId = notification.tweetId;
       const customerUsername = tweetUsernameById[tweetId];
+
+
+      const body = getNotificationText(
+        tweetId,
+        NOTIFICATION_FOR_PO
+      );
       const text = (
-        `@${poUsername} Check out this task from a customer. ` +
-        `Reply to the tweet referenced below with a gif-spec: ` +
+        `@${poUsername} ${body} ` +
         getTweetUrl(customerUsername, tweetId)
       );
 
@@ -761,10 +802,13 @@ const notify = async () => {
       const devUsername = usernameByUserId[devId];
       const tweetId = notification.tweetId;
       const poUsername = tweetUsernameById[tweetId];
+
+      const body = getNotificationText(
+        tweetId,
+        NOTIFICATION_FOR_DEV_NEW
+      );
       const text = (
-        `@${devUsername} Check out this spec from a PO. ` +
-        `Reply to the tweet referenced below with ` +
-        `your emoji-implementation: ` +
+        `@${devUsername} ${body} ` +
         getTweetUrl(poUsername, tweetId)
       );
 
@@ -782,10 +826,14 @@ const notify = async () => {
       const devUsername = notification.devUsername;
       const tweetId = notification.tweetId;
       const qaUsername = tweetUsernameById[tweetId];
+
+
+      const body = getNotificationText(
+        tweetId,
+        NOTIFICATION_FOR_DEV_REJECTED
+      );
       const text = (
-        `@${devUsername} Your implementation was rejected by QA. ` +
-        `Reply to the tweet referenced below with ` +
-        `the new emoji-implementation: ` +
+        `@${devUsername} ${body}` +
         getTweetUrl(qaUsername, tweetId)
       );
 
@@ -815,10 +863,13 @@ const notify = async () => {
       const qaUsername = usernameByUserId[qaId];
       const tweetId = notification.tweetId;
       const devUsername = tweetUsernameById[tweetId];
+
+      const body = getNotificationText(
+        tweetId,
+        NOTIFICATION_FOR_QA
+      );
       const text = (
-        `@${qaUsername} Check out this implementation from a developer. ` +
-        `Reply to the tweet referenced below with ` +
-        `"approved" or "rejected" ` +
+        `@${qaUsername} ${body} ` +
         getTweetUrl(devUsername, tweetId)
       );
 
@@ -832,13 +883,15 @@ const notify = async () => {
     }
 
     if (notification.type === NOTIFICATION_USER_JOINED) {
+      const body = getNotificationText(
+        notification.tweetId,
+        NOTIFICATION_USER_JOINED
+      );
+
       const text = (
-        `@${notification.username} thanks for joining ` +
-        `our disruptive startup!\n\n` +
-        `Your role: ${notification.category.toUpperCase()}.\n\n` +
-        `Here's smth from our HR: ` +
-        `https://github.com/flpvsk/twitter-driven-development` +
-        `/blob/master/README.md`
+        `@${notification.username} ` +
+        `${body} ${notification.category.toUpperCase()} ` +
+        getTweetUrl(notification.username, notification.tweetId)
       );
 
       console.log('sending', text);
@@ -854,10 +907,14 @@ const notify = async () => {
     }
 
     if (notification.type === NOTIFICATION_USER_LEFT) {
+      const body = getNotificationText(
+        notification.tweetId,
+        NOTIFICATION_USER_LEFT
+      );
+
       const text = (
-        `@${notification.username} sorry to see you go... ` +
-        `We do hope that you'll return all the pens ` +
-        `you took home from the office.`
+        `@${notification.username} ${body} ` +
+        getTweetUrl(notification.username, notification.tweetId)
       );
 
       console.log('sending', text);
