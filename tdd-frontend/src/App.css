@@ -208,6 +208,11 @@ body {
   text-align: center;
 }
 
+.JobsTable td {
+  padding-top: 0.5em;
+  padding-left: 0;
+}
+
 .JobsTable__Header {
   font-weight: 300;
   font-size: 0.7em;
@@ -215,14 +220,10 @@ body {
 }
 
 .JobsTable__TextHeader {
-  text-align: left;
 }
 
 .JobsTable__Id {
-  padding-top: 0.5em;
-  padding-left: 0;
   min-width: 2em;
-  text-align: left;
 }
 
 .JobsTable__Time {
@@ -230,5 +231,4 @@ body {
 }
 
 .JobsTable__Text {
-  text-align: left;
 }

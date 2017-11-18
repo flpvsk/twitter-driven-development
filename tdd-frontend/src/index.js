@@ -24,7 +24,7 @@ const EMPTY_STATE = {
     avg: undefined
   },
   scoreboardData: [],
-  allThreads: []
+  allThreads: [],
 
   // TEST STATE
 
@@ -89,25 +89,19 @@ const EMPTY_STATE = {
       url: 'https://twitter.com/flpvsk/status/931879168052224000',
       startTime: 1511015026785,
       endTime: 1511015039628,
-      leadTime: 12,
-      defects: 0,
-      text: 'grass floor in the server room #overtime'
+      leadTime: 12
     },
     {
       url: 'https://twitter.com/flpvsk/status/931879168052224000',
       startTime: 1511015026785,
       endTime: 1511015039628,
-      leadTime: 12,
-      defects: 0,
-      text: 'grass floor in the server room #overtime'
+      leadTime: 12
     },
     {
       url: 'https://twitter.com/flpvsk/status/931879168052224000',
       startTime: 1511015026785,
       endTime: 1511015039628,
-      leadTime: 12,
-      defects: 0,
-      text: 'grass floor in the server room #overtime'
+      leadTime: 12
     }
   ]
 

@@ -226,10 +226,11 @@ class App extends Component {
         return (
           <tr key={i}>
             <td className='JobsTable__Id'>{id}</td>
-            <td className='JobsTable__Text'>{thread.text}</td>
             <td className='JobsTable__Time'>{startTimeStr}</td>
             <td className='JobsTable__Time'>{endTimeStr}</td>
-            <td className='JobsTable__Defects'>{thread.defects}</td>
+            <td className='JobsTable__LeadTime'>
+              {secondsToString(thread.leadTime)}
+            </td>
           </tr>
         );
       });
@@ -238,12 +239,9 @@ class App extends Component {
         <table className='JobsTable'>
           <thead>
             <th className='JobsTable__Header'></th>
-            <th className='JobsTable__Header JobsTable__TextHeader'>
-              Job
-            </th>
             <th className='JobsTable__Header'>Start</th>
             <th className='JobsTable__Header'>End</th>
-            <th className='JobsTable__Header'>Defects</th>
+            <th className='JobsTable__Header'>Lead Time</th>
           </thead>
           <tbody>
             {jobRows}
