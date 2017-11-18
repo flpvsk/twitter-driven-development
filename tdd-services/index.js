@@ -117,6 +117,22 @@ const NOTIFICATION_TEXT_BY_TYPE = {
       `and no salary..\n\n` +
       `You joined as:`
     )
+  ],
+
+  [NOTIFICATION_USER_LEFT]: [
+    (
+      `was a pleasure working with you! ` +
+      `You do know you have to pay for all the snacks you ate ` +
+      `at the office, right?`
+    ),
+
+    (
+      `sorry to see you go.. To be honest I wish I could do the same`
+    ),
+
+    (
+      `good bye, remember all the NDAs and non-competes you signed?`
+    )
   ]
 };
 
