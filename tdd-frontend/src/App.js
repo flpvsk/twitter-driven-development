@@ -4,6 +4,23 @@ import './App.css';
 const HOUR = 60 * 60;
 const MIN = 60;
 
+const timeToString = (t) => {
+  const date = new Date(t);
+  let hours = String(date.getHours());
+  let minutes = String(date.getMinutes());
+  let seconds = String(date.getSeconds());
+
+  if (minutes.length === 1) {
+    minutes = '0' + minutes;
+  }
+
+  if (seconds.length === 1) {
+    seconds = '0' + seconds;
+  }
+
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 const secondsToString = (s) => {
   s = Math.round(s);
 
@@ -206,17 +223,12 @@ class App extends Component {
 
     if (allThreads.length){
       let jobRows = allThreads.map((thread, i) => {
-        const startTime = new Date(thread.startTime);
-        const startTimeStr = (
-          `${startTime.getHours()}:${startTime.getMinutes()}`
-        );
+        const startTimeStr = timeToString(thread.startTime);
 
         let endTimeStr;
+
         if (thread.endTime) {
-          let endTime = new Date(thread.endTime);
-          endTimeStr = (
-            `${endTime.getHours()}:${endTime.getMinutes()}`
-          );
+          endTimeStr = timeToString(thread.endTime);
         }
 
         let id = (
