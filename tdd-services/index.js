@@ -703,7 +703,7 @@ const report = () => {
     qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
     scoreboardData: scores,
     systemLeadTime: leadTimeReduced,
-    allThreads: _.sort(allThreads, (t) => t.startTime)
+    allThreads: _.sortBy(allThreads, (t) => t.startTime)
   }));
 
   setTimeout(report, REPORTING_INTERVAL);
