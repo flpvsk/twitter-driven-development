@@ -550,6 +550,7 @@ const startWatching = () => {
 
 // Reporting
 const report = () => {
+  let allThreads = [];
   let leadTimes = [];
   let leadTimesByWorkCenter = {
     [WORK_CENTER_PO]: [],
@@ -573,12 +574,21 @@ const report = () => {
     let startTime = tweetTimeById[threadId];
     let threadEnd = threadEndById[threadId];
     let endTime = threadEnd ? tweetTimeById[threadEnd] : undefined;
+    let username = tweetUsernameById[threadId];
+    let thread = {
+      startTime,
+      endTime,
+      url: getTweetUrl(username, threadId),
+      leadTime: undefined
+    };
+    allThreads.push(thread);
 
     if (endTime) {
       let leadTime = (endTime - startTime) / 1000;
       let usernames = collectUsernames(threadEnd);
       let teamId = usernames.join('-');
       let teamLeadTimes = leadTimesByTeamId[teamId] || [];
+      thread.leadTime = leadTime;
       leadTimes.push(leadTime);
       teamLeadTimes.push(leadTime);
       leadTimesByTeamId[teamId] = teamLeadTimes;
@@ -692,7 +702,8 @@ const report = () => {
     devLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
     qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
     scoreboardData: scores,
-    systemLeadTime: leadTimeReduced
+    systemLeadTime: leadTimeReduced,
+    allThreads: _.sortBy(allThreads, (t) => t.startTime)
   }));
 
   setTimeout(report, REPORTING_INTERVAL);
@@ -727,9 +738,14 @@ const getNotificationText = (tweetIdStr, type) => {
   return texts[textIndex];
 }
 
+
 // Notifications
 const notify = async () => {
   let retryNotifications = [];
+
+  if (notifications.length === 0) {
+    return;
+  }
 
   while (notifications.length > 0) {
     let notification = notifications.pop();
