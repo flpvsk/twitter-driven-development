@@ -2,6 +2,23 @@
 
 A sad look into the future of software project management.
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [Abstract](#abstract)
+- [Rules](#rules)
+  - [Joining / leaving the game](#joining--leaving-the-game)
+  - [Customer](#customer)
+  - [Product Owner](#product-owner)
+  - [Engineering](#engineering)
+  - [QA](#qa)
+- [Examples](#examples)
+  - [Example 1](#example-1)
+  - [Example 2](#example-2)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Abstract
 
 This is a game I've invented for my talk about "Theory of Constraints in
@@ -9,9 +26,10 @@ startups". The idea is to demonstrate different techniques (kanban,
 drum-buffer-rope) and pitfalls (local optimization, unplanned work) in
 managing work.
 
+
 ## Rules
 
-The game imitates work on complex tasks in a company. Tasks go from one
+The game imitates multi-stage work in a company. Tasks go from one
 division to another. Each division has to perform certain kind of work
 (tweet a certain thing) to move the task forward.
 
@@ -25,6 +43,29 @@ divided into:
 2. Product Owners
 3. Engineers
 4. QA
+
+### Joining / leaving the game
+
+In order for the server to know that it needs to watch your tweets and to
+assign a role to you as a player, you will need to join the game.
+You can do it with a tweet:
+
+> @mngr999 join
+
+You will then start receiving notifications from the bot (`@mngr999`).
+*Important:* please follow that account so notifications don't end
+up filtered by Twitter as spam.
+
+If you'd like to join with a specific role, for example QA:
+
+> @mngr999 join qa
+
+If you'd like to leave the game:
+
+> @mngr999 leave
+
+You can join again at any time.
+
 
 ### Customer
 
@@ -79,6 +120,7 @@ To prevent several QAs working on the same implementation, they should
 If the work was rejected, engineer can redo the implementation in a reply
 to QA's tweet.
 
+## Examples
 
 ### Example 1
 
