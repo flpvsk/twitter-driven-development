@@ -818,6 +818,7 @@ const notify = async () => {
           retryNotifications.push(notification);
           continue;
         }
+        sentNotificationsByType[NOTIFICATION_FOR_PO] += 1;
 
         const poUsername = usernameByUserId[poId];
         const tweetId = notification.tweetId;
@@ -860,6 +861,7 @@ const notify = async () => {
           retryNotifications.push(notification);
           continue;
         }
+        sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] += 1;
 
         const devUsername = usernameByUserId[devId];
         const tweetId = notification.tweetId;
@@ -926,6 +928,7 @@ const notify = async () => {
           retryNotifications.push(notification);
           continue;
         }
+        sentNotificationsByType[NOTIFICATION_FOR_QA] += 1;
 
         const qaUsername = usernameByUserId[qaId];
         const tweetId = notification.tweetId;
