@@ -185,6 +185,11 @@ let tweetTypeById = {};
 let threadStatusById = {};
 let tweetUsernameById = {};
 let notifications = [];
+let sentNotificationsByType = {
+  [NOTIFICATION_FOR_PO]: 0,
+  [NOTIFICATION_FOR_DEV_NEW]: 0,
+  [NOTIFICATION_FOR_QA]: 0
+};
 
 // State (users)
 
@@ -295,6 +300,11 @@ const startWatching = () => {
           threadStatusById = {};
           tweetUsernameById = {};
           notifications = [];
+          sentNotificationsByType = {
+            [NOTIFICATION_FOR_PO]: 0,
+            [NOTIFICATION_FOR_DEV_NEW]: 0,
+            [NOTIFICATION_FOR_QA]: 0
+          };
 
           restartWatcher = true;
           return;
@@ -326,7 +336,7 @@ const startWatching = () => {
           const username = msg.user.screen_name;
 
           usernameByUserId[userId] = username;
-          usersByCategory[userCategory].push(userId)
+          usersByCategory[userCategory].push(userId);
           categoryByUserId[userId] = userCategory;
           notifications.push({
             type: NOTIFICATION_USER_JOINED,
@@ -771,12 +781,12 @@ const notify = async () => {
         getTweetUrl(qaUsername, lastTweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {status: text})
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -784,12 +794,17 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_PO) {
       const poList = usersByCategory.po;
       const poIndex = (
-        Math.round(Math.random() * 1000) % poList.length
+        sentNotificationsByType[NOTIFICATION_FOR_PO] % poList.length
       );
 
       const poId = poList[poIndex];
 
       if (!poId) {
+        console.log(
+          '[notifications] cant find po, skipping',
+          poIndex,
+          poList
+        );
         retryNotifications.push(notification);
         continue;
       }
@@ -808,12 +823,12 @@ const notify = async () => {
         getTweetUrl(customerUsername, tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {status: text});
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -821,12 +836,17 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
       const devList = usersByCategory.dev;
       const devIndex = (
-        Math.round(Math.random() * 1000) % devList.length
+        sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] % devList.length
       );
 
       const devId = devList[devIndex];
 
       if (!devId) {
+        console.log(
+          '[notifications] cant find dev, skipping',
+          devIndex,
+          devList
+        );
         retryNotifications.push(notification);
         continue;
       }
@@ -844,12 +864,12 @@ const notify = async () => {
         getTweetUrl(poUsername, tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {status: text});
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -869,12 +889,12 @@ const notify = async () => {
         getTweetUrl(qaUsername, tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {status: text});
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -882,12 +902,17 @@ const notify = async () => {
     if (notification.type === NOTIFICATION_FOR_QA) {
       const qaList = usersByCategory.qa;
       const qaIndex = (
-        Math.round(Math.random() * 1000) % qaList.length
+        sentNotificationsByType[NOTIFICATION_FOR_QA] % qaList.length
       );
 
       const qaId = qaList[qaIndex];
 
       if (!qaId) {
+        console.log(
+          '[notifications] cant find qa, skipping',
+          qaIndex,
+          qaList
+        );
         retryNotifications.push(notification);
         continue;
       }
@@ -905,12 +930,12 @@ const notify = async () => {
         getTweetUrl(devUsername, tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {status: text});
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -926,14 +951,14 @@ const notify = async () => {
         getTweetUrl(notification.username, notification.tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {
           status: text
         });
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
 
@@ -948,14 +973,14 @@ const notify = async () => {
         getTweetUrl(notification.username, notification.tweetId)
       );
 
-      console.log('sending', text);
+      console.log('[notifications]', 'sending', text);
 
       try {
         await client.post('statuses/update', {
           status: text
         });
       } catch (err) {
-        console.error('Can\'t send notification', text, err);
+        console.error('[notifications] Can\'t send notification', text, err);
       }
     }
   }
@@ -976,7 +1001,6 @@ async function writeBackup() {
   const dirPath = path.dirname(dataPath);
 
   try {
-    console.log('[backup]', 'saving backup to', dataPath);
     await fs.mkdirs(dirPath);
     await fs.access(dirPath, fs.constants.W_OK | fs.constants.X_OK)
     await fs.writeJson(dataPath, {
@@ -992,9 +1016,9 @@ async function writeBackup() {
       usersByCategory,
       categoryByUserId,
       usernameByUserId,
-      gameHashtag
+      gameHashtag,
+      sentNotificationsByType
     });
-    console.log('[backup]', 'backup done');
   } catch (e) {
     console.warn('[backup]', `can't write backup at:`, dataPath, e);
   } finally {
@@ -1027,6 +1051,11 @@ async function readBackupIntoMemory() {
   categoryByUserId = data.categoryByUserId;
   usernameByUserId = data.usernameByUserId;
   gameHashtag = data.gameHashtag;
+  sentNotificationsByType = data.sentNotificationsByType || {
+    [NOTIFICATION_FOR_PO]: 0,
+    [NOTIFICATION_FOR_DEV_NEW]: 0,
+    [NOTIFICATION_FOR_QA]: 0
+  };
 
   console.log('[backup]', 'restored state from backup');
   return;
