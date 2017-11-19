@@ -26,6 +26,11 @@ const EMPTY_STATE = {
   },
   scoreboardData: [],
   allThreads: [],
+  cutCapacity: {
+    'po': 1,
+    'dev': 1,
+    'qa': 1
+  },
 
   // TEST STATE
 

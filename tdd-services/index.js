@@ -19,6 +19,7 @@ const BACKUP_PATH = (
   process.env.BACKUP_PATH ||
   `${process.env.HOME}/tmp/tdd-data.json`
 );
+const CUT_CAPACITY_REGEX=/cut\s+capacity\s+(po|dev|qa)\s+(\d+)/gi
 const BACKUP_INTERVAL = 10000;
 const REPORTING_INTERVAL = 3000;
 const NOTIFICATIONS_INTERVAL = 5000;
@@ -190,6 +191,11 @@ let sentNotificationsByType = {
   [NOTIFICATION_FOR_DEV_NEW]: 0,
   [NOTIFICATION_FOR_QA]: 0
 };
+let cutCapacity = {
+  [WORK_CENTER_PO]: 1,
+  [WORK_CENTER_DEV]: 1,
+  [WORK_CENTER_QA]: 1
+};
 
 // State (users)
 
@@ -305,6 +311,11 @@ const startWatching = () => {
             [NOTIFICATION_FOR_DEV_NEW]: 0,
             [NOTIFICATION_FOR_QA]: 0
           };
+          cutCapacity = {
+            [WORK_CENTER_PO]: 1,
+            [WORK_CENTER_DEV]: 1,
+            [WORK_CENTER_QA]: 1
+          };
 
           restartWatcher = true;
           return;
@@ -380,6 +391,18 @@ const startWatching = () => {
           restartWatcher = true;
           console.log('user left', userId, category);
           return;
+        }
+
+        // Cutting capacity
+        if (
+          msg.user.id_str === ADMIN_ID &&
+          CUT_CAPACITY_REGEX.exec(msg.text)
+        ) {
+          const cutCapacityMatch = CUT_CAPACITY_REGEX.exec(msg.text);
+          const wc = cutCapacityMatch[1];
+          const cut = Number(cutCapacityMatch[2]);
+          cutCapacity[wc] = cut;
+          console.log('[game]', `cutting capacity of ${wc} by ${cut}`);
         }
 
         // During-game actions
@@ -715,7 +738,8 @@ const report = () => {
       qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
       scoreboardData: scores,
       systemLeadTime: leadTimeReduced,
-      allThreads: _.sortBy(allThreads, (t) => t.startTime)
+      allThreads: _.sortBy(allThreads, (t) => t.startTime),
+      cutCapacity
     }));
 
   } catch (e) {
@@ -804,8 +828,9 @@ const notify = async () => {
 
       if (notification.type === NOTIFICATION_FOR_PO) {
         const poList = usersByCategory.po;
+        const capacity = Math.round(poList.length / cutCapacity[WORK_CENTER_PO]);
         const poIndex = (
-          sentNotificationsByType[NOTIFICATION_FOR_PO] % poList.length
+          sentNotificationsByType[NOTIFICATION_FOR_PO] % capacity
         );
 
         const poId = poList[poIndex];
@@ -847,8 +872,9 @@ const notify = async () => {
 
       if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
         const devList = usersByCategory.dev;
+        const capacity = Math.round(devList.length / cutCapacity[WORK_CENTER_DEV]);
         const devIndex = (
-          sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] % devList.length
+          sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] % capacity
         );
 
         const devId = devList[devIndex];
@@ -914,8 +940,9 @@ const notify = async () => {
 
       if (notification.type === NOTIFICATION_FOR_QA) {
         const qaList = usersByCategory.qa;
+        const capacity = Math.round(qaList.length / cutCapacity[WORK_CENTER_QA]);
         const qaIndex = (
-          sentNotificationsByType[NOTIFICATION_FOR_QA] % qaList.length
+          sentNotificationsByType[NOTIFICATION_FOR_QA] % capacity
         );
 
         const qaId = qaList[qaIndex];
@@ -1038,7 +1065,8 @@ async function writeBackup() {
       categoryByUserId,
       usernameByUserId,
       gameHashtag,
-      sentNotificationsByType
+      sentNotificationsByType,
+      cutCapacity
     });
   } catch (e) {
     console.warn('[backup]', `can't write backup at:`, dataPath, e);
@@ -1076,6 +1104,11 @@ async function readBackupIntoMemory() {
     [NOTIFICATION_FOR_PO]: 0,
     [NOTIFICATION_FOR_DEV_NEW]: 0,
     [NOTIFICATION_FOR_QA]: 0
+  };
+  cutCapacity = data.cutCapacity || {
+    [WORK_CENTER_PO]: 1,
+    [WORK_CENTER_DEV]: 1,
+    [WORK_CENTER_QA]: 1
   };
 
   console.log('[backup]', 'restored state from backup');

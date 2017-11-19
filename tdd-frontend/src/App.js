@@ -192,7 +192,8 @@ class App extends Component {
       qaLeadTime,
       scoreboardData,
       systemLeadTime,
-      allThreads
+      allThreads,
+      cutCapacity
     } = this.props;
 
     let scoreboardRendered;
@@ -304,6 +305,20 @@ class App extends Component {
       hashtagStr = 'no active game rn';
     }
 
+    let workCenterHeader = {
+      'po': 'PO',
+      'dev': 'DEV',
+      'qa': 'QA'
+    };
+
+    for (let wc of Object.keys(cutCapacity)) {
+      let cut = cutCapacity[wc];
+
+      if (cut > 1) {
+        workCenterHeader[wc] += ` / ${cut}`;
+      }
+    }
+
     return (
       <div className='App'>
         <header className='Header'>
@@ -335,15 +350,15 @@ class App extends Component {
         </header>
         <section className='Section'>
           <WorkInProgressMetricBlock
-            header={'PO'}
+            header={workCenterHeader.po}
             value={poInProgressNumber}
             leadTime={poLeadTime} />
           <WorkInProgressMetricBlock
-            header={'DEV'}
+            header={workCenterHeader.dev}
             value={devInProgressNumber}
             leadTime={devLeadTime} />
           <WorkInProgressMetricBlock
-            header={'QA'}
+            header={workCenterHeader.qa}
             value={qaInProgressNumber}
             leadTime={qaLeadTime} />
         </section>
