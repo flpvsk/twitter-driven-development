@@ -19,7 +19,7 @@ const BACKUP_PATH = (
   process.env.BACKUP_PATH ||
   `${process.env.HOME}/tmp/tdd-data.json`
 );
-const CUT_CAPACITY_REGEX=/cut\s+capacity\s+(po|dev|qa)\s+(\d+)/gi
+const CUT_CAPACITY_REGEX=/cut\s+capacity\s+(po|dev|qa)\s+(\d+)/i;
 const BACKUP_INTERVAL = 10000;
 const REPORTING_INTERVAL = 3000;
 const NOTIFICATIONS_INTERVAL = 5000;
