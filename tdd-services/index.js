@@ -560,163 +560,172 @@ const startWatching = () => {
 
 // Reporting
 const report = () => {
-  let allThreads = [];
-  let leadTimes = [];
-  let leadTimesByWorkCenter = {
-    [WORK_CENTER_PO]: [],
-    [WORK_CENTER_DEV]: [],
-    [WORK_CENTER_QA]: []
-  };
-  let leadTimesByTeamId = {};
-  let usernamesByTeamId = {};
-
-  let inventory = 0;
-  let defects = 0;
-  let done = 0;
-  let inventoryByWorkCenter = {
-    [WORK_CENTER_PO]: 0,
-    [WORK_CENTER_DEV]: 0,
-    [WORK_CENTER_QA]: 0
-  };
-
-
-  for (let threadId of [...tweetThreads]) {
-    let startTime = tweetTimeById[threadId];
-    let threadEnd = threadEndById[threadId];
-    let endTime = threadEnd ? tweetTimeById[threadEnd] : undefined;
-    let username = tweetUsernameById[threadId];
-    let thread = {
-      startTime,
-      endTime,
-      url: getTweetUrl(username, threadId),
-      leadTime: undefined
+  try {
+    let allThreads = [];
+    let leadTimes = [];
+    let leadTimesByWorkCenter = {
+      [WORK_CENTER_PO]: [],
+      [WORK_CENTER_DEV]: [],
+      [WORK_CENTER_QA]: []
     };
-    allThreads.push(thread);
+    let leadTimesByTeamId = {};
+    let usernamesByTeamId = {};
 
-    if (endTime) {
-      let leadTime = (endTime - startTime) / 1000;
-      let usernames = collectUsernames(threadEnd);
-      let teamId = usernames.join('-');
-      let teamLeadTimes = leadTimesByTeamId[teamId] || [];
-      thread.leadTime = leadTime;
-      leadTimes.push(leadTime);
-      teamLeadTimes.push(leadTime);
-      leadTimesByTeamId[teamId] = teamLeadTimes;
-      usernamesByTeamId[teamId] = usernames;
-      done += 1;
-      continue;
-    }
-
-    if (!endTime) {
-      inventory += 1;
-      inventoryByWorkCenter[threadStatusById[threadId]] += 1;
-    }
-  }
-
-  for (let [tweetId, parentId] of _.entries(tweetParentById)) {
-    const tweetType = tweetTypeById[tweetId];
-    const workCenter = WORK_CENTER_BY_TWEET_TYPE[tweetType];
-    leadTimesByWorkCenter[workCenter].push(
-      (tweetTimeById[tweetId] - tweetTimeById[parentId]) / 1000
-    );
-  }
-
-
-  // number of deffects
-  for (let [tweetId, type] of _.entries(tweetTypeById)) {
-    if (type === TWEET_QA_REJECTED) {
-      defects += 1;
-    }
-  }
-
-
-  // Aggregating values
-  let leadTimeReduced = {
-    min: _.min(leadTimes),
-    max: _.max(leadTimes),
-    avg: _.mean(leadTimes) || undefined
-  };
-
-  if (leadTimeReduced.min !== undefined) {
-    leadTimeReduced.min = Math.round(leadTimeReduced.min);
-  }
-  if (leadTimeReduced.max !== undefined) {
-    leadTimeReduced.max = Math.round(leadTimeReduced.max);
-  }
-  if (leadTimeReduced.avg !== undefined) {
-    leadTimeReduced.avg = Math.round(leadTimeReduced.avg);
-  }
-
-
-  const leadTimesByWorkCenterReduced = {
-    [WORK_CENTER_PO]: {
-      min: _.min(leadTimesByWorkCenter[WORK_CENTER_PO]),
-      max: _.max(leadTimesByWorkCenter[WORK_CENTER_PO]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_PO]) || undefined
-    },
-    [WORK_CENTER_DEV]: {
-      min: _.min(leadTimesByWorkCenter[WORK_CENTER_DEV]),
-      max: _.max(leadTimesByWorkCenter[WORK_CENTER_DEV]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_DEV]) || undefined
-    },
-    [WORK_CENTER_QA]: {
-      min: _.min(leadTimesByWorkCenter[WORK_CENTER_QA]),
-      max: _.max(leadTimesByWorkCenter[WORK_CENTER_QA]),
-      avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_QA]) || undefined
-    }
-  };
-
-
-  // Scores
-  let scores = [];
-  for (let [teamId, leadTimes] of _.entries(leadTimesByTeamId)) {
-    let min = _.min(leadTimes);
-    let max = _.max(leadTimes);
-    let mean = _.mean(leadTimes);
-    let variance = (
-      leadTimes.reduce((acc, leadTime) => {
-        return acc + Math.pow(leadTime - mean, 2);
-      }, 0) / leadTimes.length
-    );
-    let deviation = Math.sqrt(variance);
-    let tasksDoneNumber = leadTimes.length;
-    let points = Math.round(
-      Math.pow(tasksDoneNumber, 2) * 1000000 /
-      (mean * (deviation || 10))
-    );
-    let score = {
-      usernames: usernamesByTeamId[teamId],
-      varianceLeadTime: variance,
-      meanLeadTime: mean,
-      tasksDoneNumber,
-      points
+    let inventory = 0;
+    let defects = 0;
+    let done = 0;
+    let inventoryByWorkCenter = {
+      [WORK_CENTER_PO]: 0,
+      [WORK_CENTER_DEV]: 0,
+      [WORK_CENTER_QA]: 0
     };
 
-    scores.push(score);
+
+    for (let threadId of [...tweetThreads]) {
+      let startTime = tweetTimeById[threadId];
+      let threadEnd = threadEndById[threadId];
+      let endTime = threadEnd ? tweetTimeById[threadEnd] : undefined;
+      let username = tweetUsernameById[threadId];
+      let thread = {
+        startTime,
+        endTime,
+        url: getTweetUrl(username, threadId),
+        leadTime: undefined
+      };
+      allThreads.push(thread);
+
+      if (endTime) {
+        let leadTime = (endTime - startTime) / 1000;
+        let usernames = collectUsernames(threadEnd);
+        let teamId = usernames.join('-');
+        let teamLeadTimes = leadTimesByTeamId[teamId] || [];
+        thread.leadTime = leadTime;
+        leadTimes.push(leadTime);
+        teamLeadTimes.push(leadTime);
+        leadTimesByTeamId[teamId] = teamLeadTimes;
+        usernamesByTeamId[teamId] = usernames;
+        done += 1;
+        continue;
+      }
+
+      if (!endTime) {
+        inventory += 1;
+        inventoryByWorkCenter[threadStatusById[threadId]] += 1;
+      }
+    }
+
+    for (let [tweetId, parentId] of _.entries(tweetParentById)) {
+      const tweetType = tweetTypeById[tweetId];
+      const workCenter = WORK_CENTER_BY_TWEET_TYPE[tweetType];
+      leadTimesByWorkCenter[workCenter].push(
+        (tweetTimeById[tweetId] - tweetTimeById[parentId]) / 1000
+      );
+    }
+
+
+    // number of deffects
+    for (let [tweetId, type] of _.entries(tweetTypeById)) {
+      if (type === TWEET_QA_REJECTED) {
+        defects += 1;
+      }
+    }
+
+
+    // Aggregating values
+    let leadTimeReduced = {
+      min: _.min(leadTimes),
+      max: _.max(leadTimes),
+      avg: _.mean(leadTimes) || undefined
+    };
+
+    if (leadTimeReduced.min !== undefined) {
+      leadTimeReduced.min = Math.round(leadTimeReduced.min);
+    }
+    if (leadTimeReduced.max !== undefined) {
+      leadTimeReduced.max = Math.round(leadTimeReduced.max);
+    }
+    if (leadTimeReduced.avg !== undefined) {
+      leadTimeReduced.avg = Math.round(leadTimeReduced.avg);
+    }
+
+
+    const leadTimesByWorkCenterReduced = {
+      [WORK_CENTER_PO]: {
+        min: _.min(leadTimesByWorkCenter[WORK_CENTER_PO]),
+        max: _.max(leadTimesByWorkCenter[WORK_CENTER_PO]),
+        avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_PO]) || undefined
+      },
+      [WORK_CENTER_DEV]: {
+        min: _.min(leadTimesByWorkCenter[WORK_CENTER_DEV]),
+        max: _.max(leadTimesByWorkCenter[WORK_CENTER_DEV]),
+        avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_DEV]) || undefined
+      },
+      [WORK_CENTER_QA]: {
+        min: _.min(leadTimesByWorkCenter[WORK_CENTER_QA]),
+        max: _.max(leadTimesByWorkCenter[WORK_CENTER_QA]),
+        avg: _.mean(leadTimesByWorkCenter[WORK_CENTER_QA]) || undefined
+      }
+    };
+
+
+    // Scores
+    let scores = [];
+    for (let [teamId, leadTimes] of _.entries(leadTimesByTeamId)) {
+      let min = _.min(leadTimes);
+      let max = _.max(leadTimes);
+      let mean = _.mean(leadTimes);
+      let variance = (
+        leadTimes.reduce((acc, leadTime) => {
+          return acc + Math.pow(leadTime - mean, 2);
+        }, 0) / leadTimes.length
+      );
+      let deviation = Math.sqrt(variance);
+      let tasksDoneNumber = leadTimes.length;
+      let points = Math.round(
+        Math.pow(tasksDoneNumber, 2) * 1000000 /
+        (mean * (deviation || 10))
+      );
+      let score = {
+        usernames: usernamesByTeamId[teamId],
+        varianceLeadTime: variance,
+        meanLeadTime: mean,
+        tasksDoneNumber,
+        points
+      };
+
+      scores.push(score);
+    }
+
+    scores = _.sortBy(scores, (score) => -score.points);
+    _.forEach(scores, (score, index) => {
+      score.place = index + 1;
+    });
+
+    api.broadcast(JSON.stringify({
+      hashtag: gameHashtag,
+      participantsNumber: Object.keys(usernameByUserId).length,
+      tasksInProgressNumber: inventory,
+      tasksDoneNumber: done,
+      poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
+      devInProgressNumber: inventoryByWorkCenter[WORK_CENTER_DEV],
+      qaInProgressNumber: inventoryByWorkCenter[WORK_CENTER_QA],
+      poLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_PO].avg,
+      devLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
+      qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
+      scoreboardData: scores,
+      systemLeadTime: leadTimeReduced,
+      allThreads: _.sortBy(allThreads, (t) => t.startTime)
+    }));
+
+  } catch (e) {
+    console.error(
+      '[reports]',
+      'error in reporting',
+      e
+    );
+  } finally {
+    setTimeout(report, REPORTING_INTERVAL);
   }
-
-  scores = _.sortBy(scores, (score) => -score.points);
-  _.forEach(scores, (score, index) => {
-    score.place = index + 1;
-  });
-
-  api.broadcast(JSON.stringify({
-    hashtag: gameHashtag,
-    participantsNumber: Object.keys(usernameByUserId).length,
-    tasksInProgressNumber: inventory,
-    tasksDoneNumber: done,
-    poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
-    devInProgressNumber: inventoryByWorkCenter[WORK_CENTER_DEV],
-    qaInProgressNumber: inventoryByWorkCenter[WORK_CENTER_QA],
-    poLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_PO].avg,
-    devLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_DEV].avg,
-    qaLeadTime: leadTimesByWorkCenterReduced[WORK_CENTER_QA].avg,
-    scoreboardData: scores,
-    systemLeadTime: leadTimeReduced,
-    allThreads: _.sortBy(allThreads, (t) => t.startTime)
-  }));
-
-  setTimeout(report, REPORTING_INTERVAL);
 
   // console.log('System lead times', leadTimeReduced);
   // console.log('Work center lead times', leadTimesByWorkCenterReduced);
@@ -751,243 +760,251 @@ const getNotificationText = (tweetIdStr, type) => {
 
 // Notifications
 const notify = async () => {
-  let retryNotifications = [];
+  try {
+    let retryNotifications = [];
 
-  if (notifications.length === 0) {
-    return;
+    if (notifications.length === 0) {
+      return;
+    }
+
+    while (notifications.length > 0) {
+      let notification = notifications.pop();
+
+      if (notification.type === NOTIFICATION_TASK_COMPLETED) {
+        const threadId = notification.threadId;
+        const usernames = collectUsernames(notification.lastTweetId);
+        const usernamesStr = usernames.map(u => `@${u}`).join(' ');
+        const qaUsername = tweetUsernameById[notification.lastTweetId];
+        const lastTweetId = notification.lastTweetId;
+        const leadTime = Math.round((
+          tweetTimeById[lastTweetId] -
+          tweetTimeById[threadId]
+        ) / 1000);
+
+        const body = getNotificationText(
+          lastTweetId,
+          NOTIFICATION_TASK_COMPLETED
+        );
+
+        const text = (
+          `${usernamesStr} ${body} ${leadTime}s ` +
+          getTweetUrl(qaUsername, lastTweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {status: text})
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+
+      if (notification.type === NOTIFICATION_FOR_PO) {
+        const poList = usersByCategory.po;
+        const poIndex = (
+          sentNotificationsByType[NOTIFICATION_FOR_PO] % poList.length
+        );
+
+        const poId = poList[poIndex];
+
+        if (!poId) {
+          console.log(
+            '[notifications] cant find po, skipping',
+            poIndex,
+            poList
+          );
+          retryNotifications.push(notification);
+          continue;
+        }
+
+        const poUsername = usernameByUserId[poId];
+        const tweetId = notification.tweetId;
+        const customerUsername = tweetUsernameById[tweetId];
+
+
+        const body = getNotificationText(
+          tweetId,
+          NOTIFICATION_FOR_PO
+        );
+        const text = (
+          `@${poUsername} ${body} ` +
+          getTweetUrl(customerUsername, tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {status: text});
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+
+      if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
+        const devList = usersByCategory.dev;
+        const devIndex = (
+          sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] % devList.length
+        );
+
+        const devId = devList[devIndex];
+
+        if (!devId) {
+          console.log(
+            '[notifications] cant find dev, skipping',
+            devIndex,
+            devList
+          );
+          retryNotifications.push(notification);
+          continue;
+        }
+
+        const devUsername = usernameByUserId[devId];
+        const tweetId = notification.tweetId;
+        const poUsername = tweetUsernameById[tweetId];
+
+        const body = getNotificationText(
+          tweetId,
+          NOTIFICATION_FOR_DEV_NEW
+        );
+        const text = (
+          `@${devUsername} ${body} ` +
+          getTweetUrl(poUsername, tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {status: text});
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+
+      if (notification.type === NOTIFICATION_FOR_DEV_REJECTED) {
+        const devUsername = notification.devUsername;
+        const tweetId = notification.tweetId;
+        const qaUsername = tweetUsernameById[tweetId];
+
+
+        const body = getNotificationText(
+          tweetId,
+          NOTIFICATION_FOR_DEV_REJECTED
+        );
+        const text = (
+          `@${devUsername} ${body}` +
+          getTweetUrl(qaUsername, tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {status: text});
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+
+      if (notification.type === NOTIFICATION_FOR_QA) {
+        const qaList = usersByCategory.qa;
+        const qaIndex = (
+          sentNotificationsByType[NOTIFICATION_FOR_QA] % qaList.length
+        );
+
+        const qaId = qaList[qaIndex];
+
+        if (!qaId) {
+          console.log(
+            '[notifications] cant find qa, skipping',
+            qaIndex,
+            qaList
+          );
+          retryNotifications.push(notification);
+          continue;
+        }
+
+        const qaUsername = usernameByUserId[qaId];
+        const tweetId = notification.tweetId;
+        const devUsername = tweetUsernameById[tweetId];
+
+        const body = getNotificationText(
+          tweetId,
+          NOTIFICATION_FOR_QA
+        );
+        const text = (
+          `@${qaUsername} ${body} ` +
+          getTweetUrl(devUsername, tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {status: text});
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+      if (notification.type === NOTIFICATION_USER_JOINED) {
+        const body = getNotificationText(
+          notification.tweetId,
+          NOTIFICATION_USER_JOINED
+        );
+
+        const text = (
+          `@${notification.username} ` +
+          `${body} ${notification.category.toUpperCase()} ` +
+          getTweetUrl(notification.username, notification.tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {
+            status: text
+          });
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+
+      if (notification.type === NOTIFICATION_USER_LEFT) {
+        const body = getNotificationText(
+          notification.tweetId,
+          NOTIFICATION_USER_LEFT
+        );
+
+        const text = (
+          `@${notification.username} ${body} ` +
+          getTweetUrl(notification.username, notification.tweetId)
+        );
+
+        console.log('[notifications]', 'sending', text);
+
+        try {
+          await client.post('statuses/update', {
+            status: text
+          });
+        } catch (err) {
+          console.error('[notifications] Can\'t send notification', text, err);
+        }
+      }
+    }
+
+    notifications = retryNotifications;
+  } catch (e) {
+    console.error(
+      '[notifications] error sending notifications',
+      notifications,
+      e
+    );
+  } finally {
+    setTimeout(notify, NOTIFICATIONS_INTERVAL);
   }
-
-  while (notifications.length > 0) {
-    let notification = notifications.pop();
-
-    if (notification.type === NOTIFICATION_TASK_COMPLETED) {
-      const threadId = notification.threadId;
-      const usernames = collectUsernames(notification.lastTweetId);
-      const usernamesStr = usernames.map(u => `@${u}`).join(' ');
-      const qaUsername = tweetUsernameById[notification.lastTweetId];
-      const lastTweetId = notification.lastTweetId;
-      const leadTime = Math.round((
-        tweetTimeById[lastTweetId] -
-        tweetTimeById[threadId]
-      ) / 1000);
-
-      const body = getNotificationText(
-        lastTweetId,
-        NOTIFICATION_TASK_COMPLETED
-      );
-
-      const text = (
-        `${usernamesStr} ${body} ${leadTime}s ` +
-        getTweetUrl(qaUsername, lastTweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {status: text})
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-
-    if (notification.type === NOTIFICATION_FOR_PO) {
-      const poList = usersByCategory.po;
-      const poIndex = (
-        sentNotificationsByType[NOTIFICATION_FOR_PO] % poList.length
-      );
-
-      const poId = poList[poIndex];
-
-      if (!poId) {
-        console.log(
-          '[notifications] cant find po, skipping',
-          poIndex,
-          poList
-        );
-        retryNotifications.push(notification);
-        continue;
-      }
-
-      const poUsername = usernameByUserId[poId];
-      const tweetId = notification.tweetId;
-      const customerUsername = tweetUsernameById[tweetId];
-
-
-      const body = getNotificationText(
-        tweetId,
-        NOTIFICATION_FOR_PO
-      );
-      const text = (
-        `@${poUsername} ${body} ` +
-        getTweetUrl(customerUsername, tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {status: text});
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-
-    if (notification.type === NOTIFICATION_FOR_DEV_NEW) {
-      const devList = usersByCategory.dev;
-      const devIndex = (
-        sentNotificationsByType[NOTIFICATION_FOR_DEV_NEW] % devList.length
-      );
-
-      const devId = devList[devIndex];
-
-      if (!devId) {
-        console.log(
-          '[notifications] cant find dev, skipping',
-          devIndex,
-          devList
-        );
-        retryNotifications.push(notification);
-        continue;
-      }
-
-      const devUsername = usernameByUserId[devId];
-      const tweetId = notification.tweetId;
-      const poUsername = tweetUsernameById[tweetId];
-
-      const body = getNotificationText(
-        tweetId,
-        NOTIFICATION_FOR_DEV_NEW
-      );
-      const text = (
-        `@${devUsername} ${body} ` +
-        getTweetUrl(poUsername, tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {status: text});
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-
-    if (notification.type === NOTIFICATION_FOR_DEV_REJECTED) {
-      const devUsername = notification.devUsername;
-      const tweetId = notification.tweetId;
-      const qaUsername = tweetUsernameById[tweetId];
-
-
-      const body = getNotificationText(
-        tweetId,
-        NOTIFICATION_FOR_DEV_REJECTED
-      );
-      const text = (
-        `@${devUsername} ${body}` +
-        getTweetUrl(qaUsername, tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {status: text});
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-
-    if (notification.type === NOTIFICATION_FOR_QA) {
-      const qaList = usersByCategory.qa;
-      const qaIndex = (
-        sentNotificationsByType[NOTIFICATION_FOR_QA] % qaList.length
-      );
-
-      const qaId = qaList[qaIndex];
-
-      if (!qaId) {
-        console.log(
-          '[notifications] cant find qa, skipping',
-          qaIndex,
-          qaList
-        );
-        retryNotifications.push(notification);
-        continue;
-      }
-
-      const qaUsername = usernameByUserId[qaId];
-      const tweetId = notification.tweetId;
-      const devUsername = tweetUsernameById[tweetId];
-
-      const body = getNotificationText(
-        tweetId,
-        NOTIFICATION_FOR_QA
-      );
-      const text = (
-        `@${qaUsername} ${body} ` +
-        getTweetUrl(devUsername, tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {status: text});
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-    if (notification.type === NOTIFICATION_USER_JOINED) {
-      const body = getNotificationText(
-        notification.tweetId,
-        NOTIFICATION_USER_JOINED
-      );
-
-      const text = (
-        `@${notification.username} ` +
-        `${body} ${notification.category.toUpperCase()} ` +
-        getTweetUrl(notification.username, notification.tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {
-          status: text
-        });
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-
-    if (notification.type === NOTIFICATION_USER_LEFT) {
-      const body = getNotificationText(
-        notification.tweetId,
-        NOTIFICATION_USER_LEFT
-      );
-
-      const text = (
-        `@${notification.username} ${body} ` +
-        getTweetUrl(notification.username, notification.tweetId)
-      );
-
-      console.log('[notifications]', 'sending', text);
-
-      try {
-        await client.post('statuses/update', {
-          status: text
-        });
-      } catch (err) {
-        console.error('[notifications] Can\'t send notification', text, err);
-      }
-    }
-  }
-
-  notifications = retryNotifications;
-
-  setTimeout(notify, NOTIFICATIONS_INTERVAL);
 };
 
 const startNotifying = notify;
