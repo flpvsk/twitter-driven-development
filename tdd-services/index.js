@@ -706,6 +706,7 @@ const report = () => {
       participantsNumber: Object.keys(usernameByUserId).length,
       tasksInProgressNumber: inventory,
       tasksDoneNumber: done,
+      defectsNumber: defects,
       poInProgressNumber: inventoryByWorkCenter[WORK_CENTER_PO],
       devInProgressNumber: inventoryByWorkCenter[WORK_CENTER_DEV],
       qaInProgressNumber: inventoryByWorkCenter[WORK_CENTER_QA],

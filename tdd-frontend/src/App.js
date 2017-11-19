@@ -183,6 +183,7 @@ class App extends Component {
       participantsNumber,
       tasksInProgressNumber,
       tasksDoneNumber,
+      defectsNumber,
       poInProgressNumber,
       poLeadTime,
       devInProgressNumber,
@@ -318,6 +319,11 @@ class App extends Component {
             header={'⏳'}
             value={tasksInProgressNumber}
             description={'jobs in progress'} />
+
+          <MainMetricBlock
+            header={'💩'}
+            value={defectsNumber}
+            description={'defects'} />
 
           <MainMetricBlock
             header={'💰'}
