@@ -403,6 +403,7 @@ const startWatching = () => {
           const cut = Number(cutCapacityMatch[2]);
           cutCapacity[wc] = cut;
           console.log('[game]', `cutting capacity of ${wc} by ${cut}`);
+          return;
         }
 
         // During-game actions
