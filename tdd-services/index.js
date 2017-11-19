@@ -399,7 +399,7 @@ const startWatching = () => {
           CUT_CAPACITY_REGEX.exec(msg.text)
         ) {
           const cutCapacityMatch = CUT_CAPACITY_REGEX.exec(msg.text);
-          const wc = cutCapacityMatch[1];
+          const wc = cutCapacityMatch[1].toLowerCase();
           const cut = Number(cutCapacityMatch[2]);
           cutCapacity[wc] = cut;
           console.log('[game]', `cutting capacity of ${wc} by ${cut}`);
