@@ -321,15 +321,16 @@ class App extends Component {
 
     return (
       <div className='App'>
-        <header className='Header'>
-          {hashtagStr}
-        </header>
         <section className='Section'>
           <MainMetricBlock
             header={'👩‍🎤👨‍🎤'}
             value={participantsNumber}
             description={'participants'} />
-
+        </section>
+        <header className='Header _topBorder'>
+          {hashtagStr}
+        </header>
+        <section className='Section'>
           <MainMetricBlock
             header={'⏳'}
             value={tasksInProgressNumber}
