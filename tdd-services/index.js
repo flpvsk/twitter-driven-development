@@ -523,6 +523,10 @@ const startWatching = () => {
           tweetTimeById[tweetId] = timestamp;
           tweetTypeById[tweetId] = TWEET_QA_APPROVED;
 
+          if (threadEndById[threadId]) {
+            return;
+          }
+
           threadEndById[threadId] = tweetId;
           threadStatusById[threadId] = DONE;
 
